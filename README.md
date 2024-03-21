@@ -16,53 +16,22 @@ Below is the structure for this project.
 ├── notebook                             <- Jupyter notebook for exploration of the code only, as well examples of outputs from the jupyter notebooks such as Ms Excel with OCR results and clipped images.
 │
 ├── transcribing_model                   <- Trancribing code/scripts for use in this project.
-│   ├── main.py                          <- Script to run all the different modules (scripts) i.e. in order (1) image preprocessing module, (2) table detection model, and (3) transcription model
+│   ├── main.py                          <- Script to run all the different modules (scripts) below i.e. in order (1) image preprocessing module, (2) table detection model, and (3) transcription model
 │   │
-│   ├── image_preprocessing.py           <- Scripts to download or generate data.
-│   │   └── 01_clean_dataset.py
+│   ├── image_preprocessing.py           <- Script to carry out preprocessing of the original scans of climate data records
 │   │
-│   ├── features       <- Scripts to turn raw data into features for modeling.
-│   │   └── 02_build_features.py
+│   ├── table_detection_model.py         <- Script to detect the table cells from the already pre-processed images
 │   │
-│   ├── models         <- Scripts to train models and then use trained models to make
-│   │   │                 predictions.
-│   │   ├── 03_train_model.py
-│   │   └── 04_predict_model.py
+│   ├── transcription_model.py           <- Script to detect the text within the detected cells using an Optical Character Recognition (OCR) or Handwritten Text Tecognition (HTR) model of your choice.               
 │   │
-│   └── visualization  <- Scripts to create exploratory and results oriented visualizations
-│       └── 05_visualize.py
+│   └── output                           <- Folder with outputs from the transcription
 │
-├── references         <- Data dictionaries, manuals, bibliography (.bib)
+├── trails                               <- On-going trials/adaptations to the code.            
+│   └── handwritten_recognition.py       <- On-going trails for better recognition of handwritten text
 │
-├── reports            <- Generated analysis as HTML, PDF, LaTeX, etc.
-│   └── figures        <- Generated graphics and figures to be used in reporting
-│
-├── environment.yml    <- The requirements file for reproducing the analysis environment, e.g.
-│                         generated with `conda env export > environment.yml`
-│
-├── setup.py           <- Make this project pip installable with `pip install -e`
-|
-├── src                <- Source code for use in this project.
-│   ├── __init__.py    <- Makes src a Python module.
-│   │
-│   ├── data           <- Scripts to download or generate data.
-│   │   └── 01_clean_dataset.py
-│   │
-│   ├── features       <- Scripts to turn raw data into features for modeling.
-│   │   └── 02_build_features.py
-│   │
-│   ├── models         <- Scripts to train models and then use trained models to make
-│   │   │                 predictions.
-│   │   ├── 03_train_model.py
-│   │   └── 04_predict_model.py
-│   │
-│   └── visualization  <- Scripts to create exploratory and results oriented visualizations
-│       └── 05_visualize.py
-│
-└── .gitignore         <- Indicates which files should be ignored when pushing.
+├── environment.yml                      <- The requirements file for reproducing the analysis environment. Generated with `conda env export > environment.yml`
+
 ```
-
-
 
 This template was inspired by the [python_proj_template](https://github.com/pepaaran/python_proj_template).
 
