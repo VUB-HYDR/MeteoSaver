@@ -1,9 +1,6 @@
 # Data_Rescue_Congo_DRC
 Here we undertake data transcription of millions of daily precipitation and temperature records collected within the Congo Basin.
 
-## Setting up the repository and environment
-
-
 ## Directory structure
 Below is the structure for this project.
 ```
@@ -32,6 +29,17 @@ Below is the structure for this project.
 ├── environment.yml                      <- The requirements file for reproducing the analysis environment. Generated with `conda env export > environment.yml`
 
 ```
+
+
+## Python environment
+To ensure reproducibility of our analysis, the (environment.yml)[https://github.com/VUB-HYDR/Data_Rescue_Congo_DRC/blob/19af3b0897fc818428a8f503c2982c668b32eb54/environment.yml] provides a clone of our python environment, generated with `conda env export > environment.yml`, with all of its packages and versions. Users should use their terminal or an Anaconda Prompt to create their environment using this file.
+
+## Authors
+Derrick Muheki
+Koen Hufkens
+Bas Vercruysse
+Krishna Kumar Thirukokaranam Chandrasekar
+
 
 This template was inspired by the [python_proj_template](https://github.com/pepaaran/python_proj_template).
 
