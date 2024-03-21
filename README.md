@@ -19,18 +19,18 @@ Below is the structure for this project.
 │
 ├── transcribing_model                   <- Trancribing code/scripts for use in this project.
 │   ├── main.py                          <- Script to run all the different modules (scripts) below
-|                                           i.e. in order (1) image preprocessing module, (2) table
-|                                           detection model, and (3) transcription model
+|   |                                       i.e. in order (1) image preprocessing module, (2) table
+|   |                                       detection model, and (3) transcription model
 │   │
 │   ├── image_preprocessing.py           <- Script to carry out preprocessing of the original scans
-|                                           of climate data records
+|   |                                       of climate data records
 │   │
 │   ├── table_detection_model.py         <- Script to detect the table cells from the already
-|                                           pre-processed images
+|   |                                       pre-processed images
 │   │
 │   ├── transcription_model.py           <- Script to detect the text within the detected cells using
-|                                           an Optical Character Recognition (OCR) or Handwritten Text
-|                                           Recognition (HTR) model of your choice.               
+|   |                                       an Optical Character Recognition (OCR) or Handwritten Text
+|   |                                       Recognition (HTR) model of your choice.               
 │   │
 │   └── output                           <- Folder with outputs from the transcription
 │
