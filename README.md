@@ -5,18 +5,18 @@ Here we undertake data transcription of millions of daily precipitation and temp
 
 
 ## Directory structure
-Below is the structure for thie project.
+Below is the structure for this project.
 ```
 ├── README.md                            <- This includes general information on the project and introduction of project structure and modules
 ├── LICENSE
 |
-├── [data](https://github.com/VUB-HYDR/Data_Rescue_Congo_DRC/tree/52b91701d728cb9caff1255ae0407fc0adca289d/data/10_sample_different_images)
+├── data
 │   ├── 10_sample_different_images       <- Sample images of climate data sheets from the INERA Yangambi archives, DRC.
 │  
-├── [notebooks]                             <- Jupyter notebook for exploration of the code only, as well examples of outputs from the jupyter notebooks such as Ms Excel with OCR results and clipped images.
+├── notebook                             <- Jupyter notebook for exploration of the code only, as well examples of outputs from the jupyter notebooks such as Ms Excel with OCR results and clipped images.
 │
-├── [transcribing_model](https://github.com/VUB-HYDR/Data_Rescue_Congo_DRC/tree/52b91701d728cb9caff1255ae0407fc0adca289d/transcribing_model)                   <- Trancribing code/scripts for use in this project.
-│   ├── [main.py](https://github.com/VUB-HYDR/Data_Rescue_Congo_DRC/blob/52b91701d728cb9caff1255ae0407fc0adca289d/transcribing_model/main.py)                         <- Script to run all the different modules (scripts) i.e. in order (1) image preprocessing module, (2) table detection model, and (3) transcription model
+├── transcribing_model                   <- Trancribing code/scripts for use in this project.
+│   ├── main.py                          <- Script to run all the different modules (scripts) i.e. in order (1) image preprocessing module, (2) table detection model, and (3) transcription model
 │   │
 │   ├── image_preprocessing.py           <- Scripts to download or generate data.
 │   │   └── 01_clean_dataset.py
