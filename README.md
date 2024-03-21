@@ -34,7 +34,7 @@ Below is the structure for this project.
 │   │
 │   └── output                           <- Folder with outputs from the transcription
 │
-├── trails                               <- On-going trials/adaptations to the code.            
+├── trials                               <- On-going trials/adaptations to the code.            
 │   └── handwritten_recognition.py       <- On-going trails for better recognition of handwritten text
 │
 ├── environment.yml                      <- The requirements file for reproducing the analysis environment.
