@@ -36,8 +36,11 @@ To ensure reproducibility of our analysis, the [environment.yml](https://github.
 
 ## Authors
 Derrick Muheki
+
 Koen Hufkens
+
 Bas Vercruysse
+
 Krishna Kumar Thirukokaranam Chandrasekar
 
 
