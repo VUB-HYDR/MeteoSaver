@@ -1,0 +1,46 @@
+<mxfile host="app.diagrams.net" modified="2024-03-27T18:28:51.085Z" agent="Mozilla/5.0 (X11; Linux x86_64; rv:124.0) Gecko/20100101 Firefox/124.0" etag="76QVVJfSFH-AyLq_TvJ4" version="24.2.0" type="device">
+  <diagram name="Page-1" id="dHl7KnHCSnbt-f_vncRy">
+    <mxGraphModel dx="1434" dy="790" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="0pc8h9N3Hi1kc6rxofRp-17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="0pc8h9N3Hi1kc6rxofRp-5" target="0pc8h9N3Hi1kc6rxofRp-6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="0pc8h9N3Hi1kc6rxofRp-5" value="&lt;div&gt;Pre-processing&lt;/div&gt;" style="swimlane;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="190" y="60" width="290" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="0pc8h9N3Hi1kc6rxofRp-1" value="Template matching" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="0pc8h9N3Hi1kc6rxofRp-5">
+          <mxGeometry x="20" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="0pc8h9N3Hi1kc6rxofRp-2" value="&lt;div&gt;ML based methods&lt;/div&gt;&lt;div&gt;(table / text detection)&lt;br&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="0pc8h9N3Hi1kc6rxofRp-5">
+          <mxGeometry x="150" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="0pc8h9N3Hi1kc6rxofRp-14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="0pc8h9N3Hi1kc6rxofRp-6" target="0pc8h9N3Hi1kc6rxofRp-10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="0pc8h9N3Hi1kc6rxofRp-6" value="Transcription" style="swimlane;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="125" y="218" width="420" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="0pc8h9N3Hi1kc6rxofRp-4" value="PaddleOCR" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="0pc8h9N3Hi1kc6rxofRp-6">
+          <mxGeometry x="20" y="35" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="0pc8h9N3Hi1kc6rxofRp-8" value="Tesseract" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="0pc8h9N3Hi1kc6rxofRp-6">
+          <mxGeometry x="150" y="35" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="0pc8h9N3Hi1kc6rxofRp-9" value="EasyOCR" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="0pc8h9N3Hi1kc6rxofRp-6">
+          <mxGeometry x="280" y="35" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="0pc8h9N3Hi1kc6rxofRp-10" value="Quality control" style="swimlane;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="190" y="368" width="290" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="0pc8h9N3Hi1kc6rxofRp-11" value="Outlier detection" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="0pc8h9N3Hi1kc6rxofRp-10">
+          <mxGeometry x="20" y="35" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="0pc8h9N3Hi1kc6rxofRp-12" value="Ad-hoc corrections" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="0pc8h9N3Hi1kc6rxofRp-10">
+          <mxGeometry x="150" y="35" width="120" height="60" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
