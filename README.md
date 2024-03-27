@@ -1,6 +1,10 @@
-# Data_Rescue_Congo_DRC
+# Data Rescue Congo DRC
+
 Here we undertake data transcription of millions of daily precipitation and temperature records 
 collected within the Congo Basin.
+
+![](docs/data_rescue_flowchart.png)
+
 
 ## Directory structure
 Below is the structure for this project.
