@@ -41,13 +41,17 @@ Below is the structure for this project.
 │
 ├── environment.yml                      <- The requirements file for reproducing the analysis environment.
 |                                           Generated with `conda env export > environment.yml`
+├── setup.py                             <- Make this project pip installable with `pip install -e`
+|
+└── Dockerfile                           <- Docker install routine for a virtual environment
 
 ```
 
 
 ## Python environment
-To ensure reproducibility of our analysis, the [environment.yml](https://github.com/VUB-HYDR/Data_Rescue_Congo_DRC/blob/19af3b0897fc818428a8f503c2982c668b32eb54/environment.yml) provides a clone of our python environment, generated with `conda env export > environment.yml`, with all of its packages and versions. 
-Users should use their terminal or an Anaconda Prompt to create their environment using this file.
+To ensure reproducibility of our analysis, the [environment.yml](https://github.com/VUB-HYDR/Data_Rescue_Congo_DRC/blob/19af3b0897fc818428a8f503c2982c668b32eb54/environment.yml) provides a clone of our python environment, generated with `conda env export > environment.yml`, with all of its packages and versions.  Users should use their terminal or an Anaconda Prompt to create their environment using this file.
+
+
 
 ## Authors
 Derrick Muheki
