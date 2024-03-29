@@ -74,7 +74,7 @@ conda activate transcribing_drc_data_environment
 The dockerfile included provides a Conda environment ([see here for docker install instructions](https://docs.docker.com/engine/install/)).
 You can build this docker image using the below command. This will download all required
 python components and packages, while safeguarding (sandboxing) your system
-from `pip` based security issues. Once build locally no further downloads 
+from `pip` based [security issues](https://www.bleepingcomputer.com/news/security/pypi-suspends-new-user-registration-to-block-malware-campaign/). Once build locally no further downloads 
 will be required.
 
 ```
