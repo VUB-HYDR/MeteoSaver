@@ -7,7 +7,9 @@ collected within the Congo Basin.
 
 
 ## Directory structure
+
 Below is the structure for this project.
+
 ```
 ├── README.md                            <- This includes general information on the project
 |                                           and introduction of project structure and modules
@@ -43,7 +45,7 @@ Below is the structure for this project.
 ├── trials                               <- On-going trials/adaptations to the code.            
 │   └── handwritten_recognition.py       <- On-going trails for better recognition of handwritten text
 │
-├── environment.yml                      <- The requirements file for reproducing the analysis environment.
+├── environment.yml                      <- The requirements file for reproducing the analysis environment
 |                                           Generated with `conda env export > environment.yml`
 ├── setup.py                             <- Make this project pip installable with `pip install -e`
 |
@@ -54,6 +56,9 @@ Below is the structure for this project.
 ## Setup
 
 Two ways of creating reproducible environments are provided, the general Conda environment and an isolated Docker environment based on a Conda base image.
+
+> [!WARNING]
+> It is adviced to work in isolated Docker environments in order to ensure reproducibility, future online deployments, but first and foremost security of your computer system. Pip and to a lesser degree Conda and their python environments are a known malware vector. Although the framework we present vets the loaded library we can not assure the safety of all dependencies created downstream. The use of the local non-containerized setup is therefore not recommended.
 
 ### Conda
 
