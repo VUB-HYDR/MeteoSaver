@@ -32,6 +32,7 @@ def table_detection(image):
     threshold_area = 4  # Minimum contour area to consider as a cell
     threshold_height = 2   # Minimum height of the cell
     threshold_width = 2    # Minimum width of the cell
+    max_area = 14000 # Approx. max contour area to consider as table
     # Initialize variables for the largest contour
     largest_contour_area = 0
     largest_contour = None
@@ -39,7 +40,7 @@ def table_detection(image):
     for contour in contours:
         x, y, w, h = cv2.boundingRect(contour)
         # Filter out small contours or undesired regions based on area or aspect ratio
-        if cv2.contourArea(contour) > threshold_area and h > threshold_height and w > threshold_width:
+        if cv2.contourArea(contour) > threshold_area and h > threshold_height and w > threshold_width:  # Last two conditions to filter out contours at the edges of the image
             # Find the largest contour by area
             contour_area = cv2.contourArea(contour)
             if contour_area > largest_contour_area:
@@ -106,5 +107,6 @@ def table_detection(image):
     
 
     detected_table_cells = [contours, image_with_all_bounding_boxes, table_copy]
+    
     return detected_table_cells
 
