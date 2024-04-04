@@ -1,1 +1,0 @@
-This is the output folder for the transcribed data
