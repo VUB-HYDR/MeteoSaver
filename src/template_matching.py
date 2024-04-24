@@ -92,3 +92,5 @@ def plot_bounding_boxes(image, bounding_boxes):
 # image_path = 'table_binarized.jpg'
 # horizontal_guides, vertical_guides = parse_grid_file(file_path)
 # plot_grid(image_path, horizontal_guides, vertical_guides)
+
+

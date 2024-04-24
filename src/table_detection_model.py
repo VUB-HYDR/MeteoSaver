@@ -3,13 +3,14 @@ import os, argparse, glob, tempfile, shutil, warnings
 import cv2
 import numpy as np
 
-def table_detection(image):
+def table_detection(preprocessed_image, original_image):
     '''
     # Makes use of a pre-processed image (in grayscale) to detect the table from the record sheets
 
     Parameters
     --------------
-    image : pre-processed image 
+    preprocessed_image : pre-processed image 
+    original_image : original image
 
     Returns
     --------------
@@ -22,7 +23,7 @@ def table_detection(image):
 
     ## Using the pre-processing image to detect the table from the record sheets
     # Here, the threshold value for pixel intensities = 0, and the value 255 is assigned if the pixel value is above the threshold
-    thresh = cv2.threshold(image,0,255,cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1] 
+    thresh = cv2.threshold(preprocessed_image,0,255,cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1] 
     # Perform morphological operations (like dilation and erosion) for better segmentation
     kernel = np.ones((5,5),np.uint8)
     thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
@@ -49,16 +50,24 @@ def table_detection(image):
     # Draw bounding box for the largest contour (if found), which here represents the table on the record sheets
     if largest_contour is not None:
         x, y, w, h = cv2.boundingRect(largest_contour)
-        cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        table = image[y:y + h, x:x + w] # clip out the table (here, the largest contour) from the original image.
+        cv2.rectangle(preprocessed_image, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        table = preprocessed_image[y + 420:y + h -100 , x:x + w] # clip out the table (here, the largest contour) from the original image. ** - 420 here to clip out the header rows from the table image and -100 is for the below the table
+        table_original_image = original_image[y:y + h, x:x + w]
+        cv2.imwrite('table_original_image.jpg', table_original_image)
     else:
-        table = image # Incase the main table is not detected as the largest contour, we just use the original image/ whole record sheet as the image with the table
-
+        table = preprocessed_image # Incase the main table is not detected as the largest contour, we just use the original image/ whole record sheet as the image with the table
+        table_original_image = original_image
+        cv2.imwrite('table_original_image.jpg', table_original_image)
 
 
     ## Detecting the vertical and horizontal (both dotted and bold) in the table
     # Thresholding to reduce the image to black or white pixels
     table_img_bin = cv2.adaptiveThreshold(table, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 91,6)
+        
+    # # Perform morphological operations to close small gaps and connect dots (dotted lines within the table)
+    # kernel = np.ones((3, 3), np.uint8)
+    # closing = cv2.morphologyEx(table_img_bin, cv2.MORPH_CLOSE, kernel, iterations=2)
+
     # Save the binary image for use later in detecting text
     cv2.imwrite('table_binarized.jpg', table_img_bin)
     #thresh,img_bin = cv2.threshold(table,100,255,cv2.THRESH_BINARY)
@@ -103,10 +112,10 @@ def table_detection(image):
     contours = result[0]
     # Original image of table in binarizesd format
     image_with_all_bounding_boxes = cv2.imread('table_binarized.jpg')
-    table_copy = image_with_all_bounding_boxes.copy()
+    table_binarized = image_with_all_bounding_boxes.copy()
     
 
-    detected_table_cells = [contours, image_with_all_bounding_boxes, table_copy]
+    detected_table_cells = [contours, image_with_all_bounding_boxes, table_binarized, table_original_image]
     
     return detected_table_cells
 

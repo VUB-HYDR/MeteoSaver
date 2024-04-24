@@ -21,4 +21,4 @@ def image_preprocessing(image_path):
     # Image in grayscale
     image = cv2.cvtColor(original_image, cv2.COLOR_BGR2GRAY)
 
-    return image
+    return image, original_image
