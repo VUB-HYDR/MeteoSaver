@@ -16,6 +16,21 @@ from sklearn.cluster import KMeans
 
 
 def organize_contours(contours, image_shape, max_rows):
+    '''
+    # Organizes the bounding boxes, here termed as contours, in rows by their center co-ordinates using the KMeans clustering
+
+    Parameters
+    --------------
+    contours: List of contours for the detected text in the table cells with coordinates
+    image_shape: Image of the table
+    max_rows: Maximum rows, adjust based on your table's expected structure
+
+    Returns
+    -------------- 
+    rows: Bounding boxes organised in rows using Kmeans clustering
+
+    '''
+
     image_height, image_width, _ = image_shape
     midpoints = [(cv2.boundingRect(contour)[1] + cv2.boundingRect(contour)[3] // 2) for contour in contours]
     if len(midpoints) == 0:
@@ -31,6 +46,21 @@ def organize_contours(contours, image_shape, max_rows):
     return rows
 
 # def organize_contours_bottom(contours, image_shape, max_rows):
+    # '''
+    # # Organizes the bounding boxes, here termed as contours, in rows by their bottom co-ordinates using the KMeans clustering
+
+    # Parameters
+    # --------------
+    # contours: List of contours for the detected text in the table cells with coordinates
+    # image_shape: Image of the table
+    # max_rows: Maximum rows, adjust based on your table's expected structure
+
+    # Returns
+    # -------------- 
+    # rows: Bounding boxes organised in rows using Kmeans clustering
+
+    # '''
+
 #     image_height, image_width, _ = image_shape
 #     bottom = [(cv2.boundingRect(contour)[1] + cv2.boundingRect(contour)[3]) for contour in contours]
 #     if len(bottom) == 0:
@@ -50,6 +80,21 @@ def organize_contours(contours, image_shape, max_rows):
 
 
 def organize_contours_top(contours, image_shape, max_rows):
+    '''
+    # Organizes the bounding boxes, here termed as contours, in rows by their top co-ordinates using the KMeans clustering
+
+    Parameters
+    --------------
+    contours: List of contours for the detected text in the table cells with coordinates
+    image_shape: Image of the table
+    max_rows: Maximum rows, adjust based on your table's expected structure
+
+    Returns
+    -------------- 
+    rows: Bounding boxes organised in rows using Kmeans clustering
+
+    '''
+
     image_height, image_width, _ = image_shape
     # Top for vertical clustering
     top = [cv2.boundingRect(contour)[1] for contour in contours]
@@ -89,7 +134,7 @@ def transcription(detected_table_cells, ocr_model):
     
     Returns
     -------------- 
-    wb : MS Excel workbook with OCR Results
+    wb : Ms Excel workbook with OCR Results
     ''' 
     if ocr_model == 'Tesseract-OCR':
         ## Lauching Tesseract-OCR
@@ -309,14 +354,14 @@ def transcription(detected_table_cells, ocr_model):
         for col_num, sub_header in enumerate(sub_headers_2, start=1):
             ws.cell(row=3, column=col_num, value=sub_header)
 
-        file_path = f'{method_name}_Excel_with_OCR_Results.xlsx'
+        file_path = f'src\output\{method_name}_Excel_with_OCR_Results.xlsx'
         wb.save(file_path)
         results.append([file_path])
 
         #wb.save(f'{method_name}_Excel_with_OCR_Results.xlsx') 
 
-        plt.imshow(image_with_all_bounding_boxes)
-        plt.show()
+        # plt.imshow(image_with_all_bounding_boxes)
+        # plt.show()
 
     return results
 

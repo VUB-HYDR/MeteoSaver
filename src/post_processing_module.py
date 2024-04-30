@@ -4,31 +4,26 @@ from openpyxl.styles import PatternFill
 import shutil
 from openpyxl.styles import Border, Side
 from openpyxl.styles import Alignment
+import pandas as pd
 
 # Setting up the current working directory; for both the input and output folders
 cwd = os.getcwd()
 
-def remove_single_quotes_from_numeric_cells(file_path):
-    # Open het Excel-bestand
-    wb = openpyxl.load_workbook(file_path)
-    
-    # Ga naar elk blad in het werkboek
-    for sheet_name in wb.sheetnames:
-        sheet = wb[sheet_name]
-        
-        # Itereer over alle cellen in het blad
-        for row in sheet.iter_rows(min_row=1, max_row=sheet.max_row, min_col=1, max_col=sheet.max_column):
-            for cell in row:
-                # Controleer of de cel een numerieke waarde bevat en een string is
-                if isinstance(cell.value, str):
-                    # Verwijder enkele aanhalingstekens uit de celwaarde
-                    cell.value = cell.value.replace("'", "")
-
-    # Sla het bijgewerkte Excel-bestand op
-    wb.save('table_1311_without_hyphens.xlsx')
 
 
 def is_string_convertible_to_float(value):
+    '''
+    # Check if the value in the cell can be converted to a float. This will ensure that calculations in the pprocessing of this data will be done.
+
+    Parameters
+    --------------
+    value: value within a cell in an Ms Excel sheet
+
+    Returns
+    -------------- 
+    value: convertible value within a cell. Passes the check.
+
+    '''
     if value is None: # Check to handle None cases (empty cells)
         return False
     try:
@@ -38,21 +33,38 @@ def is_string_convertible_to_float(value):
         return False
 
 def count_decimal_points(string): # Function to count the number of decimal points in a string
+    '''
+    # Counts the number of decimal points in a string in a cell. This is a check to avoid transcribed numbers with more than one decimal point
+
+    Parameters
+    --------------
+    string: value within a cell in an Ms Excel sheet
+
+    Returns
+    -------------- 
+    count: number of decimal points in a string in a cell
+    '''
+
     count = 0
     for char in string:
         if char == '.':
             count += 1
     return count
 
-    
-def check_if_more_than_one_decimal(string):
-    return string.count('.') == 2
 
 def highlight_change(color, worksheet_and_cell_coordinate, filename):
-    '''
-    color: string
-    worksheet_and_cell_coordinate: variable in the form worksheet[cell_coordinate] 
-    filename: variable
+    '''Highlights a cell in an Excel worksheet to show whether: (1) a change has been made in the processing of the transcribed data to correct an error, (2) certain values have been confirmed as correctly transcribed, or (3) certain values have been confirmed as wrongly transcribed
+
+    Parameters
+    --------------
+    color: String. Selected color depending on the check. See table: Key_for_post_processed_data_sheets in the docs folders
+    worksheet_and_cell_coordinate: cell to highlight
+    filename: Name/Location of excel file
+
+    Returns
+    -------------- 
+    highlighted cells in the excel file
+
     '''
     
     # Highlight cells with strings instead of floats
@@ -64,17 +76,93 @@ def highlight_change(color, worksheet_and_cell_coordinate, filename):
     # workbook.save(filename)
     # return filename
 
+
+def merge_excel_files(file1, file2, output_file, start_row, end_row):
+    '''Merges two excel files (as a check): the transcribed excel organised in rows using the top coordinates of the bounding boxes and that organised in rows using the mid point coordinates.
+
+    Parameters
+    --------------
+    file1: Excel sheet. Preprocessed transcribed data organised in rows using the mid point coordinates of the bounding boxes (contours).
+    file2: Excel sheet. Preprocessed transcribed data organised in rows using the top coordinates of the bounding boxes(contours).
+    output_file: Path. Location to store the output excel sheet. Merged file of file1 and file2 above to cross check to ensure propoer placement of cells in their rescpective rows
+    start_row: Integer. Start row (beneath the headers)
+    end_row: Integer. Last row
+
+    Returns
+    -------------- 
+    Merged excel file: Now the pre-processed excel file.
+
+    '''
+
+    # Load the Excel files into DataFrames, ensuring they include headers if present
+    df1 = pd.read_excel(file1)
+    df2 = pd.read_excel(file2)
+
+    # Load headers separately if you need to prepend them later
+    headers = pd.read_excel(file1, header= 0, nrows=3)  # Read only the first three rows for headers
+
+
+    # If the indices are not simple integers or do not align with Excel rows as expected,
+    # you might need to reset them or adjust how the Excel file is being read (e.g., `index_col=None`)
+    df1 = df1.reset_index(drop=True)
+    df2 = df2.reset_index(drop=True)
+
+    # Convert start_row and end_row to zero-based index for Python
+    start_idx = start_row - 1  # Convert 1-based index to 0-based
+    end_idx = end_row -1    # Convert 1-based index to 0-based
+
+    # Slice to only include the range from start_idx to end_idx
+    df1 = df1.iloc[start_idx:end_idx+1]
+    df2 = df2.iloc[start_idx:end_idx+1]
+
+    # Initialize a new DataFrame to hold merged results
+    merged_df = pd.DataFrame(index=df1.index, columns=df1.columns)
+
+    # Iterate over rows by index (assuming the indices are aligned)
+    for idx in df1.index:
+        for col in df1.columns:
+            val1 = df1.at[idx, col]
+            val2 = df2.at[idx, col]
+            # Simple merge logic: prefer non-empty values from df1, then df2
+            if pd.notna(val1):
+                merged_df.at[idx, col] = val1
+            else:
+                merged_df.at[idx, col] = val2
+
+    # Write the merged DataFrame to a new Excel file
+    # merged_df.to_excel(output_file)
+
+    # Prepend headers if needed
+    final_df = pd.concat([headers, merged_df], ignore_index=True)
+
+    # Write the merged DataFrame to a new Excel file without the index
+    final_df.to_excel(output_file, index=False, header=None)  # Set header=None if headers are manually handled
+
+
     
-def post_processing(pre_processed_excel_file):
+def post_processing(pre_processed_excel_file, postprocessed_data_dir, month_filename):
+    '''Post processing of the transcribed data. Here we make checks such as outlier detection (e.g. using thresholds for temperatures, variance, etc,) and ad-hoc corrections
+
+    Parameters
+    --------------
+    pre_processed_excel_file: Excel sheet. Preprocessed transcribed data.
+    postprocessed_data_dir: Path. Location to store the final postprocessed excel file.
+    month_filename: String. Naming of output files with station metadata as in original images of climate data sheets
+
+    Returns
+    -------------- 
+    new_workbook: Postprocessed excel file of transcribed climate data.
+
+    '''
     # Open the original Excel file
     workbook = openpyxl.load_workbook(pre_processed_excel_file)
     worksheet = workbook.active
 
     # Path to save a new copy of the workbook for post-processing
-    new_version_of_file = 'quality_controlled_data_table_copy.xlsx'
+    new_version_of_file = f'{postprocessed_data_dir}\{month_filename}_post_processed.xlsx'
 
     # Save the original workbook to ensure it's on disk
-    original_path = 'original_transcribed_data.xlsx'
+    original_path = f'src\output\original_transcribed_data.xlsx'
     workbook.save(original_path)
 
     # Copy the original file to a new version for post-processing
@@ -499,26 +587,59 @@ def post_processing(pre_processed_excel_file):
                             new_workbook.save(new_version_of_file)
                         
                         new_workbook.save(new_version_of_file)
-                
-        # Set up border styles for excel output
-        thin_border = Border(
-            left=Side(style='thin'),
-            right=Side(style='thin'),
-            top=Side(style='thin'),
-            bottom=Side(style='thin'))
 
-        # Loop through cells to apply borders
-        for row in new_worksheet.iter_rows(min_row=1, max_row=new_worksheet.max_row, min_col=1, max_col=new_worksheet.max_column):
-            for cell in row:
-                cell.border = thin_border
-        new_workbook.save(new_version_of_file)
-        
-        # Iterate through all cells and set the alignment
-        for row in new_worksheet.iter_rows():
-            for cell in row:
-                cell.alignment = Alignment(horizontal='center', vertical='center')
 
-        new_workbook.save(new_version_of_file)
+    
+
+    # Insert a new row at the top for headers
+    new_worksheet.insert_rows(1, amount = 1)
+    # Define your headers (adjust as needed)
+    headers = ["No de la pentade", "Date", "Bellani (gr. Cal/cm2) 6-6h", "Températures extrêmes", "", "", "", "", "Evaportation en cm3 6 - 6h", "", "Pluies en mm. 6-6h", "Température et Humidité de l'air à 6 heures", "", "", "", "", "Température et Humidité de l'air à 15 heures",  "", "", "", "", "Température et Humidité de l'air à 18 heures",  "", "", "", "", "Date"]
+    # Add the headers to the first row
+    for col_num, header in enumerate(headers, start=1):
+        new_worksheet.cell(row=1, column=col_num, value=header)
+
+        if header == "No de la pentade" or header == "Date" or header == "Bellani (gr. Cal/cm2) 6-6h" or header == "Pluies en mm. 6-6h":
+            cell.alignment = Alignment(textRotation=90)
+    
+    # Merge cells for multi-column headers
+    new_worksheet.merge_cells(start_row=1, start_column=1, end_row=3, end_column=1) #No de la pentade
+    new_worksheet.merge_cells(start_row=1, start_column=2, end_row=3, end_column=2) #Date
+    new_worksheet.merge_cells(start_row=1, start_column=3, end_row=3, end_column=3) #Bellani
+    new_worksheet.merge_cells(start_row=1, start_column=4, end_row=1, end_column=8) #Températures extrêmes
+    new_worksheet.merge_cells(start_row=1, start_column=9, end_row=1, end_column=10) #Evaportation
+    new_worksheet.merge_cells(start_row=1, start_column=11, end_row=3, end_column=11) #Pluies
+    new_worksheet.merge_cells(start_row=1, start_column=12, end_row=1, end_column=16) #Température et Humidité de l'air à 6 heures
+    new_worksheet.merge_cells(start_row=1, start_column=17, end_row=1, end_column=21) #Température et Humidité de l'air à 15 heures
+    new_worksheet.merge_cells(start_row=1, start_column=22, end_row=1, end_column=26) #Température et Humidité de l'air à 18 heures
+    new_worksheet.merge_cells(start_row=1, start_column=27, end_row=3, end_column=27) #Date
+    # subheaders
+    new_worksheet.merge_cells(start_row=2, start_column=4, end_row=2, end_column=7) #Abri
+    new_worksheet.merge_cells(start_row=2, start_column=9, end_row=2, end_column=10) #Piche
+    new_worksheet.merge_cells(start_row=2, start_column=12, end_row=2, end_column=16) #(Psychromètre a aspiration)
+    new_worksheet.merge_cells(start_row=2, start_column=17, end_row=2, end_column=21) #(Psychromètre a aspiration)
+    new_worksheet.merge_cells(start_row=2, start_column=22, end_row=2, end_column=26) #(Psychromètre a aspiration)
+
+    
+    # Set up border styles for excel output
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin'))
+
+    # Loop through cells to apply borders
+    for row in new_worksheet.iter_rows(min_row=1, max_row=new_worksheet.max_row, min_col=1, max_col=new_worksheet.max_column):
+        for cell in row:
+            cell.border = thin_border
+    new_workbook.save(new_version_of_file)
+    
+    # Iterate through all cells and set the alignment
+    for row in new_worksheet.iter_rows():
+        for cell in row:
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+
+    new_workbook.save(new_version_of_file)
 
     new_workbook.close()
 
