@@ -31,7 +31,8 @@ postprocessed_data_dir_station = os.path.join(postprocessed_data_dir, station) #
 os.makedirs(postprocessed_data_dir_station, exist_ok=True) # Create the directory if it doesn't exist
 
 # Station data - original photographs/scans of archived datasheets
-station_data = glob.glob(datadir+'/IMG_*') # a [] number of images from one station. Tasked the code on 203[124]
+# station_data = glob.glob(datadir+'/IMG_*') # a [] number of images from one station. Tasked the code on 203[124]
+station_data = glob.glob(datadir+ '/'+ str(station) +'_*') # a [] number of images from one station. Tasked the code on 203[124]
 filenames = [os.path.basename(file) for file in station_data]
 
 for month in range(len(station_data)):
@@ -60,5 +61,17 @@ for month in range(len(station_data)):
     post_processed_data = post_processing(f'{preprocessed_data_dir_station}\{month_filename}_preprocessed.xlsx', postprocessed_data_dir_station, month_filename)
     end_time=datetime.now() # print total runtime of the code
     print('Duration of post-processing: {}'.format(end_time - start_time))
+
+
+    # ## Validation. This will be implemetend as the last step for selected data
+    # # Accuracy check# Example usage
+    # new_file1 = r'C:\Users\dmuheki\OneDrive - Vrije Universiteit Brussel\PhD_Derrick_Muheki\21_Research\21_6_Analysis\21_6_1_Postprocessing_data\DUMMY_FOLDER\DUMMY_FOLDER_196905_SF.JPG_post_processed.xlsx'  # Workbook with highlighted cells
+    # file2 = r'C:\Users\dmuheki\OneDrive - Vrije Universiteit Brussel\PhD_Derrick_Muheki\21_Research\21_6_Analysis\21_6_1_Postprocessing_data\DUMMY_FOLDER\IMG_1361.JPG_manually_entered_temperatures.xlsx'  # Workbook with correct values
+    # compare_workbooks(new_file1, file2)
+
+    # old_file1 = r'C:\Users\dmuheki\OneDrive - Vrije Universiteit Brussel\PhD_Derrick_Muheki\21_Research\21_6_Analysis\21_6_1_Postprocessing_data\DUMMY_FOLDER\IMG_1361.JPG_post_processed.xlsx'  # Workbook with highlighted cells
+    # file2 = r'C:\Users\dmuheki\OneDrive - Vrije Universiteit Brussel\PhD_Derrick_Muheki\21_Research\21_6_Analysis\21_6_1_Postprocessing_data\DUMMY_FOLDER\IMG_1361.JPG_manually_entered_temperatures.xlsx'  # Workbook with correct values
+    # compare_workbooks(old_file1, file2)
+
 
 
