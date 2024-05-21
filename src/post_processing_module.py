@@ -76,6 +76,40 @@ def highlight_change(color, worksheet_and_cell_coordinate, filename):
     # workbook.save(filename)
     # return filename
 
+# Define a helper function to check if a cell is highlighted
+# def is_highlighted(cell, color):
+#     ''' Checks if a cell is highlighted during the earlier post processing steps. This will help us in correcting some of the values in the cells depending on the error    
+
+#     Parameters
+#     --------------   
+#     cell: coordinates of cell to check
+#     color: highlighted color
+
+#     Returns
+#     -------------- 
+#     count: if the cell is highlighted with the specified color
+
+#     '''
+#     return cell.fill.start_color.index == color
+
+
+# def is_highlighted(cell, color):
+#     # Check the RGB color value
+#     fill = cell.fill.start_color.index
+#     if isinstance(fill, str):
+#         return fill == color
+#     elif isinstance(fill, openpyxl.styles.colors.Color):
+#         return fill.rgb == color
+#     return False
+
+
+def is_highlighted(cell, color):
+    fill = cell.fill.start_color
+    if isinstance(fill, openpyxl.styles.colors.Color):
+        return fill.rgb == color
+    return False
+
+
 
 def merge_excel_files(file1, file2, output_file, start_row, end_row):
     '''Merges two excel files (as a check): the transcribed excel organised in rows using the top coordinates of the bounding boxes and that organised in rows using the mid point coordinates.
@@ -139,6 +173,72 @@ def merge_excel_files(file1, file2, output_file, start_row, end_row):
     final_df.to_excel(output_file, index=False, header=None)  # Set header=None if headers are manually handled
 
 
+def has_two_digits_in_order(value, calculated_value):
+    """
+    Check if at least two consecutive digits of the calculated value are present in the correct order in the given value, ignoring decimal points.
+    
+    Parameters:
+    --------------
+    value: str. The value to check.
+    calculated_value: str. The calculated value to compare against.
+    
+    Returns:
+    --------------
+    Boolean: True if at least two consecutive digits are in the correct order, False otherwise.
+    """
+    # Remove decimal points by replacing them with an empty string
+    value_str = str(value).replace('.', '')
+    calculated_str = str(calculated_value).replace('.', '')
+
+    # Sliding window approach to check for two consecutive matching digits
+    for i in range(len(calculated_str) - 1):
+        # Take two consecutive digits from the calculated value
+        consecutive_digits = calculated_str[i:i+2]
+        # Check if these two consecutive digits appear in the same order in the value
+        if consecutive_digits in value_str:
+            return True
+    return False
+
+
+# def has_two_digits_in_order(value, calculated_value, uncertainty_margin=0.1):
+#     """
+#     Check if at least two consecutive digits of the calculated value or its variations within the uncertainty margin 
+#     are present in the correct order in the given value, ignoring decimal points.
+    
+#     Parameters:
+#     --------------
+#     value: str. The value to check.
+#     calculated_value: float. The calculated value to compare against.
+#     uncertainty_margin: float. The allowed margin of uncertainty.
+    
+#     Returns:
+#     --------------
+#     Boolean: True if at least two consecutive digits are in the correct order within the uncertainty margin, False otherwise.
+#     """
+#     # Generate a list of possible values within the uncertainty margin
+#     possible_values = [
+#         calculated_value,
+#         calculated_value + uncertainty_margin,
+#         calculated_value - uncertainty_margin
+#     ]
+
+#     # Convert possible values to strings without decimal points
+#     possible_value_strs = [str(round(v, 1)).replace('.', '') for v in possible_values]
+
+#     # Remove decimal points from the original value
+#     value_str = str(value).replace('.', '')
+
+#     # Sliding window approach to check for two consecutive matching digits
+#     for possible_value_str in possible_value_strs:
+#         for i in range(len(possible_value_str) - 1):
+#             # Take two consecutive digits from the possible value
+#             consecutive_digits = possible_value_str[i:i+2]
+#             # Check if these two consecutive digits appear in the same order in the value
+#             if consecutive_digits in value_str:
+#                 return True
+#     return False
+
+
     
 def post_processing(pre_processed_excel_file, postprocessed_data_dir, month_filename):
     '''Post processing of the transcribed data. Here we make checks such as outlier detection (e.g. using thresholds for temperatures, variance, etc,) and ad-hoc corrections
@@ -188,7 +288,7 @@ def post_processing(pre_processed_excel_file, postprocessed_data_dir, month_file
                     if is_string_convertible_to_float(cell.value): # Checking if the value transcribed in the cell is convertible to a float to avoid strings 
                         # Convert to string to check length and manipulate
                         str_value = str(cell.value)
-                        if len(str_value) > 4: # Thousands. Here i chose 4 because it seems the strings are mad up up numbers and a newline \n character. Check this when you use 3 instead
+                        if len(str_value) > 4: # Thousands. Here i chose 4 because it seems the strings are made up up numbers and a newline \n character. Check this when you use 3 instead
                             # Remove the first digit and convert back to the original type
                             new_value = str_value[1:]  # Remove the first character
                             cell.value = type(cell.value)(new_value)  # Convert back to int or float
@@ -237,7 +337,7 @@ def post_processing(pre_processed_excel_file, postprocessed_data_dir, month_file
 
 
     # Creating thresholds for temperature values
-    Maximum_Temperature_Threshold = 35  # Max reported temperatures during 1950-1959 were 30-31 degC + increasing temperatures in 1960-1990 approximated at 0.60°C to 1.62°C per 30 yr period (Alsdorf et.al, 2016)
+    Maximum_Temperature_Threshold = 40  # Max reported temperatures during 1950-1959 were 30-31 degC + increasing temperatures in 1960-1990 approximated at 0.60°C to 1.62°C per 30 yr period (Alsdorf et.al, 2016)
     Minimum_Temperature_Threshold = 10  # Min reported temperatures during 1950-1959 were 18-20 degC  et.al, 2016)       
 
     # Cell coordinates to check the totals
@@ -457,6 +557,18 @@ def post_processing(pre_processed_excel_file, postprocessed_data_dir, month_file
 
 
                                     new_workbook.save(new_version_of_file)
+                            
+                            if float(cell_coordinate_in_worksheet.value) < Minimum_Temperature_Threshold:
+
+                                if float(cell_coordinate_in_worksheet.value) == "":
+                                    highlight_change('FFFFFF', cell_coordinate_in_worksheet, new_version_of_file) #No Fill
+                                    new_workbook.save(new_version_of_file)
+                                else:
+                                    # Highlight to show that value is out of the expected Minimum Temperature bounds
+                                    highlight_change('CC3300', cell_coordinate_in_worksheet, new_version_of_file) #CC3300 is Dark Red 
+
+
+                                    new_workbook.save(new_version_of_file)
                 
                 
                     ### Doing the check again after manipulating the values
@@ -502,11 +614,11 @@ def post_processing(pre_processed_excel_file, postprocessed_data_dir, month_file
             if is_string_convertible_to_float(value_in_cell_for_5_day_total_retrieved_as_string):
                 #if value_in_cell_for_5_day_total_retrieved ==  str(total_from_cell_values_for_the_5_days): 
                 if format(float(value_in_cell_for_5_day_total_retrieved_as_string),'.1f') == format(float(total_from_cell_values_for_the_5_days), '.1f'):
-                    highlight_change('6DCD57', new_worksheet[column + str(row)], new_version_of_file) #6DCD57 is Green. The total of the transcribed 5 days values is equal to the Total transcribed for the cells
+                    highlight_change('FF6DCD57', new_worksheet[column + str(row)], new_version_of_file) #6DCD57 is Green. The total of the transcribed 5 days values is equal to the Total transcribed for the cells
                     new_workbook.save(new_version_of_file)
                     # highlight transcribed cells that lead to correct transcribed total
                     for i in range(row - offset_cells, row):
-                        highlight_change('6DCD57', new_worksheet[column + str(i)], new_version_of_file) #6DCD57 is Green. The total of the transcribed 5 days values is equal to the Total transcribed for the cells
+                        highlight_change('FF6DCD57', new_worksheet[column + str(i)], new_version_of_file) #6DCD57 is Green. The total of the transcribed 5 days values is equal to the Total transcribed for the cells
                         new_workbook.save(new_version_of_file)
                     print('The total of the transcribed 5 days values is equal to the Total transcribed for the cell; ' +str(column)+ str(row) + ' is OK')
 
@@ -532,22 +644,30 @@ def post_processing(pre_processed_excel_file, postprocessed_data_dir, month_file
                         cell_coordinate_in_worksheet_with_the_mean.value = float(mean_of_5_days_retrieved)
                         highlight_change('75696F', cell_coordinate_in_worksheet_with_the_mean, new_version_of_file) #75696F is Grey. When transcribed 5-day average is not equal to average of the 5 days
                         
-                        if float(mean_of_5_days_retrieved) > Maximum_Temperature_Threshold:
-                                # Highlight to show that value is out of the expected bounds
-                                new_value = (float(mean_of_5_days_retrieved)/10.0)  #try dividing by 10, to avoid very large values due to missing decimal point
-                                cell_coordinate_in_worksheet_with_the_mean.value = new_value
-                                highlight_change('CC3300', cell_coordinate_in_worksheet_with_the_mean, new_version_of_file) #CC3300 is Dark Red
+                        # if float(mean_of_5_days_retrieved) > Maximum_Temperature_Threshold:
+                        #         # Highlight to show that value is out of the expected bounds
+                        #         new_value = (float(mean_of_5_days_retrieved)/10.0)  #try dividing by 10, to avoid very large values due to missing decimal point
+                        #         cell_coordinate_in_worksheet_with_the_mean.value = new_value
+                        #         highlight_change('CC3300', cell_coordinate_in_worksheet_with_the_mean, new_version_of_file) #CC3300 is Dark Red
                                 
-                                if format(float(new_value), '.1f') == format(total_from_cell_values_for_the_5_days/(offset_cells - total_blank_cells), '.1f'):
-                                    highlight_change('6DCD57', cell_coordinate_in_worksheet_with_the_mean, new_version_of_file) #6DCD57 is Green. When transcribed 5-day average is equal to average of the 5 days
+                        #         if format(float(new_value), '.1f') == format(total_from_cell_values_for_the_5_days/(offset_cells - total_blank_cells), '.1f'):
+                        #             highlight_change('FF6DCD57', cell_coordinate_in_worksheet_with_the_mean, new_version_of_file) #6DCD57 is Green. When transcribed 5-day average is equal to average of the 5 days
                             
+
+                        # if float(mean_of_5_days_retrieved) < Minimum_Temperature_Threshold:
+
+                        #     # Highlight to show that value is out of the expected Minimum Temperature bounds
+                        #     highlight_change('CC3300', cell_coordinate_in_worksheet_with_the_mean, new_version_of_file) #CC3300 is Dark Red 
+
+
                         new_workbook.save(new_version_of_file)
+
                     else:
-                        highlight_change('6DCD57', cell_coordinate_in_worksheet_with_the_mean, new_version_of_file) #6DCD57 is Green. When transcribed 5-day average is equal to average of the 5 days
+                        highlight_change('FF6DCD57', cell_coordinate_in_worksheet_with_the_mean, new_version_of_file) #6DCD57 is Green. When transcribed 5-day average is equal to average of the 5 days
                         # highlight transcribed cells that lead to correct transcribed average
                         
                         for i in range(row - offset_cells, row):
-                            highlight_change('6DCD57', new_worksheet[column + str(i)], new_version_of_file) #6DCD57 is Green. The average of the transcribed 5 days values is equal to the average transcribed for the cells
+                            highlight_change('FF6DCD57', new_worksheet[column + str(i)], new_version_of_file) #6DCD57 is Green. The average of the transcribed 5 days values is equal to the average transcribed for the cells
                             new_workbook.save(new_version_of_file)
                         
                         new_workbook.save(new_version_of_file)
@@ -568,27 +688,227 @@ def post_processing(pre_processed_excel_file, postprocessed_data_dir, month_file
                         cell_coordinate_in_worksheet_with_the_mean.value = float(mean_of_5_days_retrieved)
                         highlight_change('75696F', cell_coordinate_in_worksheet_with_the_mean, new_version_of_file) #75696F is Grey. When transcribed 5-day average is not equal to average of the 5 days
                         
-                        if float(mean_of_5_days_retrieved) > Maximum_Temperature_Threshold:
-                                # Highlight to show that value is out of the expected bounds
-                                new_value = (float(mean_of_5_days_retrieved)/10.0)  #try dividing by 10, to avoid very large values due to missing decimal point
-                                cell_coordinate_in_worksheet_with_the_mean.value = new_value
-                                highlight_change('CC3300', cell_coordinate_in_worksheet_with_the_mean, new_version_of_file) #CC3300 is Dark Red
+                        # if float(mean_of_5_days_retrieved) > Maximum_Temperature_Threshold:
+                        #         # Highlight to show that value is out of the expected bounds
+                        #         new_value = (float(mean_of_5_days_retrieved)/10.0)  #try dividing by 10, to avoid very large values due to missing decimal point
+                        #         cell_coordinate_in_worksheet_with_the_mean.value = new_value
+                        #         highlight_change('CC3300', cell_coordinate_in_worksheet_with_the_mean, new_version_of_file) #CC3300 is Dark Red
                                 
-                                if format(float(new_value), '.1f') == format(total_from_cell_values_for_the_5_days/(offset_cells - total_blank_cells), '.1f'):
-                                    highlight_change('6DCD57', cell_coordinate_in_worksheet_with_the_mean, new_version_of_file) #6DCD57 is Green. When transcribed 5-day average is equal to average of the 5 days
-                            
+                        #         if format(float(new_value), '.1f') == format(total_from_cell_values_for_the_5_days/(offset_cells - total_blank_cells), '.1f'):
+                        #             highlight_change('FF6DCD57', cell_coordinate_in_worksheet_with_the_mean, new_version_of_file) #6DCD57 is Green. When transcribed 5-day average is equal to average of the 5 days
+
+                        # if float(mean_of_5_days_retrieved) < Minimum_Temperature_Threshold:
+
+                        #     # Highlight to show that value is out of the expected Minimum Temperature bounds
+                        #     highlight_change('CC3300', cell_coordinate_in_worksheet_with_the_mean, new_version_of_file) #CC3300 is Dark Red 
+
+
                         new_workbook.save(new_version_of_file)
+
                     else:
-                        highlight_change('6DCD57', cell_coordinate_in_worksheet_with_the_mean, new_version_of_file) #6DCD57 is Green. When transcribed 5-day average is equal to average of the 5 days
+                        highlight_change('FF6DCD57', cell_coordinate_in_worksheet_with_the_mean, new_version_of_file) #6DCD57 is Green. When transcribed 5-day average is equal to average of the 5 days
                         # highlight transcribed cells that lead to correct transcribed average
                         
                         for i in range(row - offset_cells, row):
-                            highlight_change('6DCD57', new_worksheet[column + str(i)], new_version_of_file) #6DCD57 is Green. The average of the transcribed 5 days values is equal to the average transcribed for the cells
+                            highlight_change('FF6DCD57', new_worksheet[column + str(i)], new_version_of_file) #6DCD57 is Green. The average of the transcribed 5 days values is equal to the average transcribed for the cells
                             new_workbook.save(new_version_of_file)
                         
                         new_workbook.save(new_version_of_file)
+            
+    # Check row by row. If two of the three temperature values (min, max or average) are correct (i.e. checked by the 5/6 day averages or total, and thus highlighted with green) and therefore correct the third value
+    # First lets assign a margin of uncertainty
+    uncertainty_margin = 0.2  # This because of the rounding off thats done usually during the calculation of the average daily temperature i.e incase value has 2 decimal points
+    # Rows to exclude
+    excluded_rows = [8, 9, 15, 16, 22, 23, 29, 30, 36, 37, 44, 45, 46, 47] # These are the rows with 5/6  day total or averages. They are excluded there because these totals and averages will be re-checked, and/or recalculated later if necessary 
+    
+    # The check the cells by rows, and manipulate where necessary
+    for row in new_worksheet.iter_rows(min_row=3, max_row=new_worksheet.max_row, min_col=4, max_col=6):
+        if row[0].row in excluded_rows:
+            continue       
+            
+        D, E, F = row
+        D_highlighted = is_highlighted(D, 'FF6DCD57')
+        E_highlighted = is_highlighted(E, 'FF6DCD57')
+        F_highlighted = is_highlighted(F, 'FF6DCD57')
+
+        highlighted_count = D_highlighted + E_highlighted + F_highlighted
+
+        # Check if the highlighted cells have values
+        D_value_exists = is_string_convertible_to_float(D.value)
+        E_value_exists = is_string_convertible_to_float(E.value)
+        F_value_exists = is_string_convertible_to_float(F.value)
+
+        exists_count = D_value_exists + E_value_exists + F_value_exists
+
+        # Ensure that value in column D is always greater than value in column E
+        if D_value_exists and E_value_exists and float(D.value) <= float(E.value):
+            highlight_change('FFFF0000', D, new_version_of_file)  # Red
+            highlight_change('FFFF0000', E, new_version_of_file)  # Red
+            continue
 
 
+        if highlighted_count == 2:
+            if not D_highlighted:
+                if is_string_convertible_to_float(E.value) and is_string_convertible_to_float(F.value):
+                    calculated_D = round(2 * float(F.value) - float(E.value), 1)
+                    if abs(float(D.value) - calculated_D) <= uncertainty_margin:
+                        highlight_change('FF6DCD57', D, new_version_of_file)
+                    else:
+                        D.value = calculated_D
+                        highlight_change('FF6DCD57', D, new_version_of_file)
+            elif not E_highlighted:
+                if is_string_convertible_to_float(D.value) and is_string_convertible_to_float(F.value):
+                    calculated_E = round(2 * float(F.value) - float(D.value), 1)
+                    if abs(float(E.value) - calculated_E) <= uncertainty_margin:
+                        highlight_change('FF6DCD57', E, new_version_of_file)
+                    else:
+                        E.value = calculated_E
+                        highlight_change('FF6DCD57', E, new_version_of_file)
+                    
+            elif not F_highlighted:
+                if is_string_convertible_to_float(D.value) and is_string_convertible_to_float(E.value):
+                    calculated_F = round((float(D.value) + float(E.value)) / 2, 1)
+                    if abs(float(F.value) - calculated_F) <= uncertainty_margin:    
+                        highlight_change('FF6DCD57', F, new_version_of_file)
+                    else:
+                        F.value = calculated_F
+                        highlight_change('FF6DCD57', F, new_version_of_file)
+            #new_workbook.save(new_version_of_file)
+            
+        # If one cell is highlighted but has no value, calculate its value
+        elif highlighted_count == 3 and exists_count == 2:
+            if D_highlighted and not D_value_exists and E_value_exists and F_value_exists:
+                D.value = round(2 * float(F.value) - float(E.value), 1)
+                highlight_change('FF6DCD57', D, new_version_of_file)
+            elif E_highlighted and not E_value_exists and D_value_exists and F_value_exists:
+                E.value = round(2 * float(F.value) - float(D.value), 1)
+                highlight_change('FF6DCD57', E, new_version_of_file)
+            elif F_highlighted and not F_value_exists and D_value_exists and E_value_exists:
+                F.value = round((float(D.value) + float(E.value)) / 2, 1)
+                highlight_change('FF6DCD57', F, new_version_of_file)
+            #new_workbook.save(new_version_of_file)
+        
+        # If none of the cells are highlighted green but they all have values, or maybe only one of the cells is highlighted green
+        elif highlighted_count < 2 and D_value_exists and E_value_exists and F_value_exists:
+
+            calculated_D = round(2 * float(F.value) - float(E.value), 1)
+            if abs(calculated_D - float(D.value)) <= uncertainty_margin:
+                highlight_change('FF6DCD57', D, new_version_of_file)
+                #new_workbook.save(new_version_of_file)
+            
+            calculated_E = round(2 * float(F.value) - float(D.value), 1)
+            if abs(calculated_E - float(E.value)) <= uncertainty_margin:
+                highlight_change('FF6DCD57', E, new_version_of_file)
+                #new_workbook.save(new_version_of_file)
+            
+
+            calculated_F = round((float(D.value) + float(E.value)) / 2, 1)
+            if abs(calculated_F - float(F.value)) <= uncertainty_margin:
+                highlight_change('FF6DCD57', F, new_version_of_file)
+                #new_workbook.save(new_version_of_file)
+            
+
+
+            # Check if at least two digits of the calculated value are present in the correct order in the given value. If so, replace the transcribed value with the corrected value
+            if has_two_digits_in_order(D.value, calculated_D) and Minimum_Temperature_Threshold <= calculated_D <= Maximum_Temperature_Threshold and calculated_D > E.value:
+                D.value = calculated_D
+                highlight_change('FF6DCD57', D, new_version_of_file)
+                # new_workbook.save(new_version_of_file)
+
+            # Check if at least two digits of the calculated value are present in the correct order in the given value. If so, replace the transcribed value with the correcetd value
+            if has_two_digits_in_order(E.value, calculated_E) and Minimum_Temperature_Threshold <= calculated_E <= Maximum_Temperature_Threshold and calculated_E < D.value :
+                E.value = calculated_E
+                highlight_change('FF6DCD57', E, new_version_of_file)
+                # new_workbook.save(new_version_of_file)
+
+            # Check if at least two digits of the calculated value are present in the correct order in the given value. If so, replace the transcribed value with the correcetd value
+            if has_two_digits_in_order(F.value, calculated_F) and Minimum_Temperature_Threshold <= calculated_F <= Maximum_Temperature_Threshold and E.value < calculated_F < D.value:
+                F.value = calculated_F
+                highlight_change('FF6DCD57', F, new_version_of_file)
+                # new_workbook.save(new_version_of_file)
+                
+        #new_workbook.save(new_version_of_file)    
+
+        # RE-CHECKS
+        D_highlighted = is_highlighted(D, 'FF6DCD57')
+        E_highlighted = is_highlighted(E, 'FF6DCD57')
+        F_highlighted = is_highlighted(F, 'FF6DCD57')
+
+        highlighted_count = D_highlighted + E_highlighted + F_highlighted
+
+        # Check if the highlighted cells have values
+        D_value_exists = is_string_convertible_to_float(D.value)
+        E_value_exists = is_string_convertible_to_float(E.value)
+        F_value_exists = is_string_convertible_to_float(F.value)
+
+        if highlighted_count >=1 :
+            if E_value_exists and F_value_exists:
+                calculated_D = round(2 * float(F.value) - float(E.value), 1)
+                if abs(float(D.value) - calculated_D) <= uncertainty_margin:
+                    highlight_change('FF6DCD57', D, new_version_of_file)
+                else:
+                    D.value = calculated_D
+                    highlight_change('FF6DCD57', D, new_version_of_file)
+            if D_value_exists and F_value_exists:
+                calculated_E = round(2 * float(F.value) - float(D.value), 1)
+                if abs(float(E.value) - calculated_E) <= uncertainty_margin:
+                    highlight_change('FF6DCD57', E, new_version_of_file)
+                else:
+                    E.value = calculated_E
+                    highlight_change('FF6DCD57', E, new_version_of_file)
+            if D_value_exists and E_value_exists:
+                calculated_F = round((float(D.value) + float(E.value)) / 2, 1)
+                if abs(float(F.value) - calculated_F) <= uncertainty_margin:    
+                    highlight_change('FF6DCD57', F, new_version_of_file)
+                else:
+                    F.value = calculated_F
+                    highlight_change('FF6DCD57', F, new_version_of_file)
+        
+    new_workbook.save(new_version_of_file)
+
+    # New logic to recalculate 5/6 day totals and averages if all five/six cells above are highlighted green
+    total_rows = [8, 15, 22, 29, 36, 44]
+    columns = ['D', 'E', 'F', 'K']   # Max, Min and Ave Temperatures & Precipitation
+
+    for row in total_rows:
+        for col in columns:
+            if row is not 44: # 5 days total
+                cells_above = [new_worksheet[f"{col}{row - i}"] for i in range(1, 6)]
+            if row is 44: # the last total contains 6 days (Day 26 to Day 31 of the month)
+                cells_above = [new_worksheet[f"{col}{row - i}"] for i in range(1, 7)]
+            if all(is_highlighted(cell, 'FF6DCD57') for cell in cells_above):
+                total_value = sum(float(cell.value) for cell in cells_above) #5/6 day total
+                average_value = total_value / len(cells_above) # 5/6 day average
+                total_cell = new_worksheet[f"{col}{row}"]
+                average_cell = new_worksheet[f"{col}{row + 1}"]  # The average is in the row right below the total
+                total_cell.value = round(total_value, 1)
+                average_cell.value = round(average_value, 1)
+                highlight_change('FF6DCD57', total_cell, new_version_of_file)
+                highlight_change('FF6DCD57', average_cell, new_version_of_file)
+
+    # Save the workbook after all changes
+    new_workbook.save(new_version_of_file)
+
+
+
+    # # New logic to recalculate 5/6 day averages if all five/six cells above are highlighted green
+    # average_rows = [9, 16, 23, 30, 37, 45]
+    # columns = ['D', 'E', 'F', 'K']   # Max, Min and Ave Temperatures & Precipitation
+
+    # for row in average_rows:
+    #     for col in columns:
+    #         if row is not 45: # 5 days average
+    #             cells_above = [new_worksheet[f"{col}{row - i}"] for i in range(2, 7)]
+    #         if row is 45: # the last average contains 6 days (Day 26 to Day 31 of the month)
+    #             cells_above = [new_worksheet[f"{col}{row - i}"] for i in range(2, 8)]
+    #         if all(is_highlighted(cell, 'FF6DCD57') for cell in cells_above):
+    #             average_value = mean(float(cell.value) for cell in cells_above)
+    #             average_cell = new_worksheet[f"{col}{row}"]
+    #             average_cell.value = round(average_value, 1)
+    #             highlight_change('FF6DCD57', average_cell, new_version_of_file)
+
+    # # Save the workbook after all changes
+    # new_workbook.save(new_version_of_file)
     
 
     # Insert a new row at the top for headers
@@ -644,3 +964,43 @@ def post_processing(pre_processed_excel_file, postprocessed_data_dir, month_file
     new_workbook.close()
 
     return new_workbook
+
+
+
+## Compare the 'correct' transcribed and post corrected data with manually entered data
+def compare_workbooks(file1, file2, uncertainty_margin=0.5):
+    # Load both workbooks
+    wb1 = openpyxl.load_workbook(file1)
+    ws1 = wb1.active
+
+    wb2 = openpyxl.load_workbook(file2)
+    ws2 = wb2.active
+
+    total_highlighted_cells = 0
+    accurate_matches = 0
+
+    # Iterate through the cells in the first workbook
+    for row in ws1.iter_rows(min_row=4, max_row=ws1.max_row, min_col=4, max_col=6):
+        for cell in row:
+            if is_highlighted(cell, 'FF6DCD57'):
+                total_highlighted_cells += 1
+
+                cell_value_ws1 = cell.value
+                cell_value_ws2 = ws2.cell(row=cell.row, column=cell.column).value
+
+                if is_string_convertible_to_float(cell_value_ws1) and is_string_convertible_to_float(cell_value_ws2):
+                    if abs(float(cell_value_ws1) - float(cell_value_ws2)) <= uncertainty_margin:
+                        accurate_matches += 1
+
+    if total_highlighted_cells == 0:
+        accuracy_percentage = 0.0
+    else:
+        accuracy_percentage = (accurate_matches / total_highlighted_cells) * 100
+
+    print(f"Total Highlighted Cells: {total_highlighted_cells}")
+    #print(f"Accurate Matches: {accurate_matches}")
+    print(f"Accuracy Percentage: {accuracy_percentage:.2f}%")
+
+    # Close the workbooks
+    wb1.close()
+    wb2.close()
