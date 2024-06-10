@@ -6,10 +6,11 @@ from src.image_preprocessing_module import *
 from src.table_detection_model import *
 from src.transcription_model import *
 from src.post_processing_module import *
+from src.selection_and_conversion import *
 
 ## ***NEW
-from src.template_matching import *
-from src.crop_border import *
+# from src.template_matching import *
+# from src.crop_border import *
 
 # Setting up the current working directory; for both the input and output folders
 cwd = os.getcwd()
@@ -57,21 +58,31 @@ for month in range(len(station_data)):
     # Module 4: Post-processing
     start_time = datetime.now() # Start recording post-processing time
     month_filename = filenames[month] #restore naming of output files with station metadata
-    merge_excel_files(f'src\output\Midpoint_Excel_with_OCR_Results.xlsx', f'src\output\Top_Excel_with_OCR_Results.xlsx', f'{preprocessed_data_dir_station}\{month_filename}_preprocessed.xlsx', 4, 48) # this prioritizes the mid point coordinates of the bounding box to the top coordinates when placing the transcribed data into an excel sheet. But considers the best placement for both as double check.
+    merge_excel_files(f'src\output\Midpoint_Excel_with_OCR_Results.xlsx', f'src\output\Top_Excel_with_OCR_Results.xlsx', f'{preprocessed_data_dir_station}\{month_filename}_preprocessed.xlsx', 4, 47) # this prioritizes the mid point coordinates of the bounding box to the top coordinates when placing the transcribed data into an excel sheet. But considers the best placement for both as double check.
     post_processed_data = post_processing(f'{preprocessed_data_dir_station}\{month_filename}_preprocessed.xlsx', postprocessed_data_dir_station, month_filename)
     end_time=datetime.now() # print total runtime of the code
     print('Duration of post-processing: {}'.format(end_time - start_time))
 
 
-    # ## Validation. This will be implemetend as the last step for selected data
-    # # Accuracy check# Example usage
-    # new_file1 = r'C:\Users\dmuheki\OneDrive - Vrije Universiteit Brussel\PhD_Derrick_Muheki\21_Research\21_6_Analysis\21_6_1_Postprocessing_data\DUMMY_FOLDER\DUMMY_FOLDER_196905_SF.JPG_post_processed.xlsx'  # Workbook with highlighted cells
-    # file2 = r'C:\Users\dmuheki\OneDrive - Vrije Universiteit Brussel\PhD_Derrick_Muheki\21_Research\21_6_Analysis\21_6_1_Postprocessing_data\DUMMY_FOLDER\IMG_1361.JPG_manually_entered_temperatures.xlsx'  # Workbook with correct values
-    # compare_workbooks(new_file1, file2)
 
-    # old_file1 = r'C:\Users\dmuheki\OneDrive - Vrije Universiteit Brussel\PhD_Derrick_Muheki\21_Research\21_6_Analysis\21_6_1_Postprocessing_data\DUMMY_FOLDER\IMG_1361.JPG_post_processed.xlsx'  # Workbook with highlighted cells
-    # file2 = r'C:\Users\dmuheki\OneDrive - Vrije Universiteit Brussel\PhD_Derrick_Muheki\21_Research\21_6_Analysis\21_6_1_Postprocessing_data\DUMMY_FOLDER\IMG_1361.JPG_manually_entered_temperatures.xlsx'  # Workbook with correct values
-    # compare_workbooks(old_file1, file2)
+# Module 5: Selection of confirmed data (after Quality Control) and conversion to Station Exchange Format (SEF)
+
+selected_data_dir = r'C:\Users\dmuheki\OneDrive - Vrije Universiteit Brussel\PhD_Derrick_Muheki\21_Research\21_6_Analysis\21_6_2_Final_refined_daily_station_data'
+selected_data_dir_station = os.path.join(selected_data_dir, station) # Folder for every station (for postprocessed data)
+os.makedirs(selected_data_dir_station, exist_ok=True) # Create the directory if it doesn't exist
+selected_and_converted_data = select_and_convert_postprocessed_data(postprocessed_data_dir_station, selected_data_dir_station, station)
 
 
+
+######## PLANNED VALIDATION CHECKS with already digitized INERA data
+
+# ## Validation. This will be implemetend as the last step for selected data
+# # Accuracy check# Example usage
+# new_file1 = r'C:\Users\dmuheki\OneDrive - Vrije Universiteit Brussel\PhD_Derrick_Muheki\21_Research\21_6_Analysis\21_6_1_Postprocessing_data\DUMMY_FOLDER\DUMMY_FOLDER_196905_SF.JPG_post_processed.xlsx'  # Workbook with highlighted cells
+# file2 = r'C:\Users\dmuheki\OneDrive - Vrije Universiteit Brussel\PhD_Derrick_Muheki\21_Research\21_6_Analysis\21_6_1_Postprocessing_data\DUMMY_FOLDER\IMG_1361.JPG_manually_entered_temperatures.xlsx'  # Workbook with correct values
+# compare_workbooks(new_file1, file2)
+
+# old_file1 = r'C:\Users\dmuheki\OneDrive - Vrije Universiteit Brussel\PhD_Derrick_Muheki\21_Research\21_6_Analysis\21_6_1_Postprocessing_data\DUMMY_FOLDER\IMG_1361.JPG_post_processed.xlsx'  # Workbook with highlighted cells
+# file2 = r'C:\Users\dmuheki\OneDrive - Vrije Universiteit Brussel\PhD_Derrick_Muheki\21_Research\21_6_Analysis\21_6_1_Postprocessing_data\DUMMY_FOLDER\IMG_1361.JPG_manually_entered_temperatures.xlsx'  # Workbook with correct values
+# compare_workbooks(old_file1, file2)
 

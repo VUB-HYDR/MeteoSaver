@@ -3,6 +3,78 @@ import os, argparse, glob, tempfile, shutil, warnings
 import cv2
 import numpy as np
 
+def detect_lines(image, kernel_size, iterations):
+    # Convert to grayscale if necessary
+    if len(image.shape) == 3:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = image
+
+    # Use binary thresholding
+    _, img_bin = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+
+    # Define a kernel for morphological operations
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, kernel_size)
+
+    # Detect lines using morphological operations
+    eroded_image = cv2.erode(img_bin, kernel, iterations=iterations)
+    lines = cv2.dilate(eroded_image, kernel, iterations=iterations)
+
+    # Find contours of the lines
+    contours, _ = cv2.findContours(lines, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    return contours
+
+def calculate_average_angle(contours, orientation='horizontal'):
+    angles = []
+    for contour in contours:
+        x, y, w, h = cv2.boundingRect(contour)
+        if orientation == 'horizontal' and w > 0:  # Avoid division by zero
+            angle = np.degrees(np.arctan2(h, w))
+        elif orientation == 'vertical' and h > 0:  # Avoid division by zero
+            angle = np.degrees(np.arctan2(w, h))
+        else:
+            continue
+        angles.append(angle)
+
+    if angles:
+        average_angle = np.mean(angles)
+    else:
+        average_angle = 0
+
+    return average_angle
+
+def deskew(image):
+
+    # In this updated code:
+
+    # The detect_horizontal_lines function detects horizontal lines in the image using morphological operations.
+    # The calculate_average_angle function computes the average angle of all detected horizontal lines.
+    # The deskew function rotates the image by this average angle to deskew it.
+    # The table_detection function uses the deskewed image to detect the table.
+
+    # Detect horizontal lines and calculate the average angle
+    hor_contours = detect_lines(image, (np.array(image).shape[1] // 20, 1), iterations=1)
+    hor_angle = calculate_average_angle(hor_contours, orientation='horizontal')
+
+    # Rotate the image to deskew horizontally
+    (h, w) = image.shape[:2]
+    center = (h//2 , w//2)
+    M_hor = cv2.getRotationMatrix2D(center, -hor_angle, 1.0)
+    rotated_hor = cv2.warpAffine(image, M_hor, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+
+    # # Detect vertical lines and calculate the average angle
+    # ver_contours = detect_lines(rotated_hor, (1, np.array(image).shape[0] // 20), iterations=1)
+    # ver_angle = calculate_average_angle(ver_contours, orientation='vertical')
+
+    # # Rotate the image to deskew vertically
+    # M_ver = cv2.getRotationMatrix2D(center, -ver_angle, 1.0)
+    # rotated_ver = cv2.warpAffine(rotated_hor, M_ver, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+
+    return rotated_hor
+
+
+
 def table_detection(preprocessed_image, original_image):
     '''
     # Makes use of a pre-processed image (in grayscale) to detect the table from the record sheets
@@ -17,7 +89,8 @@ def table_detection(preprocessed_image, original_image):
     detected_table_cells where:    
         detected_table_cells[0]: contours. Contours for the detected text in the table cells
         detected_table_cells[1]: image_with_all_bounding_boxes. Bounding boxex for each cell for which clips will be made later before optical character recognition 
-        detected_table_cells[2]: table_copy
+        detected_table_cells[2]: table_copy. Binarized
+        detected_table_cells[3]: original table image
 
     '''
 
@@ -51,7 +124,8 @@ def table_detection(preprocessed_image, original_image):
     if largest_contour is not None:
         x, y, w, h = cv2.boundingRect(largest_contour)
         cv2.rectangle(preprocessed_image, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        table = preprocessed_image[y + 420:y + h -100 , x:x + w] # clip out the table (here, the largest contour) from the original image. ** - 420 here to clip out the header rows from the table image and -100 is for the below the table
+        table = preprocessed_image[y + 420:y + h -270 , x+200:x + w-170] # clip out the table (here, the largest contour) from the original image. ** - 420 here to clip out the header rows from the table image and -100 is for the below the table
+        table = deskew(table) # Deskew the image
         table_original_image = original_image[y:y + h, x:x + w]
         cv2.imwrite('table_original_image.jpg', table_original_image)
     else:
@@ -91,10 +165,16 @@ def table_detection(preprocessed_image, original_image):
     image_without_lines_noise_removed = cv2.erode(image_without_lines, kernel, iterations=1)
     image_without_lines_noise_removed = cv2.dilate(image_without_lines_noise_removed, kernel, iterations=1)
     # Convert words into blobs using dilation
+    #kernel_to_remove_gaps_between_words = np.ones((5, 5), np.uint8)  # Larger kernel to bridge gaps better
     kernel_to_remove_gaps_between_words = np.array([
-            [1,1,1,1,1],
-            [1,1,1,1,1]])
-    image_with_word_blobs = cv2.dilate(image_without_lines_noise_removed, kernel_to_remove_gaps_between_words, iterations=5)
+            [1,1,1,1,1, 1],
+            [1,1,1,1,1, 1]])
+    image_with_word_blobs = cv2.dilate(image_without_lines_noise_removed, kernel_to_remove_gaps_between_words, iterations=5) # was 5 iterations previously
+    
+    # # Apply morphological closing to close gaps between letters within words
+    # closing_kernel = np.ones((5, 5), np.uint8)
+    # image_with_word_blobs = cv2.morphologyEx(image_with_word_blobs, cv2.MORPH_CLOSE, closing_kernel)
+
     simple_kernel = np.ones((3,3), np.uint8)
     image_with_word_blobs = cv2.dilate(image_with_word_blobs, simple_kernel, iterations=1)
     # Detecting the dotted lines using horizontal line detection and erosion. ### ADDITIONAL STEP: This is because the original images ahve dotted horizontal lines which cvan still be detected after the first removal of main (undotted) horizontal lines

@@ -5,7 +5,7 @@ import openpyxl
 from openpyxl import Workbook
 from openpyxl.styles import Alignment
 from openpyxl.styles import Border, Side
-from paddleocr import PaddleOCR,draw_ocr
+#from paddleocr import PaddleOCR,draw_ocr
 from PIL import Image, ImageDraw, ImageFont
 import pytesseract
 import easyocr
@@ -115,7 +115,91 @@ def organize_contours_top(contours, image_shape, max_rows):
     return rows
 
 
+def get_excel_cell_coordinates(file_path, sheet_name):
+    wb = openpyxl.load_workbook(file_path)
+    ws = wb[sheet_name]
+    
+    cell_coordinates = {}
+    for row in ws.iter_rows(min_row=1, min_col=1, max_row=43, max_col=24):
+        for cell in row:
+            if cell.value is None:
+                cell_coordinates[cell.coordinate] = (cell.column, cell.row)
+                
+    return cell_coordinates
 
+def normalize_coordinates(coord, dimension):
+    return coord / dimension
+
+def normalize_cell_coordinates(cell_coordinates, sheet_dimensions):
+    normalized_cell_coords = {}
+    for cell_ref, (col, row) in cell_coordinates.items():
+        normalized_col = normalize_coordinates(col, sheet_dimensions['width'])
+        normalized_row = normalize_coordinates(row, sheet_dimensions['height'])
+        normalized_cell_coords[cell_ref] = (normalized_col, normalized_row)
+    return normalized_cell_coords
+
+def find_closest_cell(normalized_center_x, normalized_center_y, normalized_cell_coordinates):
+    closest_cell = None
+    min_distance = float('inf')
+    
+    for cell_ref, (normalized_col, normalized_row) in normalized_cell_coordinates.items():
+        distance = np.sqrt((normalized_center_x - normalized_col) ** 2 + (normalized_center_y - normalized_row) ** 2)
+        
+        if distance < min_distance:
+            min_distance = distance
+            closest_cell = cell_ref
+    
+    return closest_cell
+
+# def find_next_empty_cell(ws, start_cell_ref):
+#     column = start_cell_ref[0]
+#     start_row = int(start_cell_ref[1:])
+    
+#     current_row = start_row
+#     while ws[f"{column}{current_row}"].value is not None:
+#         current_row += 1
+    
+#     return f"{column}{current_row}"
+
+# def find_previous_cell(ws, start_cell_ref):
+#     column = start_cell_ref[0]
+#     start_row = int(start_cell_ref[1:])
+
+#     # Check the very previous cell only
+#     if start_row > 1:
+#         next_row = start_row - 1
+
+#         return f"{column}{next_row}"
+#     else:
+#         return f"{column}{start_row}"
+
+def find_next_cell(ws, start_cell_ref):
+    column = start_cell_ref[0]
+    start_row = int(start_cell_ref[1:])
+
+    # Check the very next cell only
+    next_row = start_row + 1
+
+    return f"{column}{next_row}"
+
+# def find_adjacent_empty_cell(ws, start_cell_ref):
+#     column = start_cell_ref[0]
+#     start_row = int(start_cell_ref[1:])
+
+#     # Check the cell directly below
+#     current_row = start_row
+#     if ws[f"{column}{current_row}"].value is not None:
+#         current_row += 1
+
+#     # Check the cell directly above
+#     if current_row > 0 and ws[f"{column}{current_row}"].value is not None:
+#         current_row -= 1
+    
+#     return f"{column}{current_row}"
+
+    # # If both adjacent cells are occupied or out of bounds, return None
+    # elseif: 
+    #     return f"{column}{start_row}
 
 def transcription(detected_table_cells, ocr_model):
     '''
@@ -139,9 +223,9 @@ def transcription(detected_table_cells, ocr_model):
     if ocr_model == 'Tesseract-OCR':
         ## Lauching Tesseract-OCR
         pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe' ## Here input the PATH to the Tesseract executable on your computer. See more information here: https://pypi.org/project/pytesseract/
-    if ocr_model == 'PaddleOCR':
-        ## Lauching PaddleOCR, which would be used by downloading necessary files as shown below
-        paddle_ocr = PaddleOCR(use_angle_cls=True, lang = 'en', use_gpu=False) ## Run only once to download all required files
+    # if ocr_model == 'PaddleOCR':
+    #     ## Lauching PaddleOCR, which would be used by downloading necessary files as shown below
+    #     paddle_ocr = PaddleOCR(use_angle_cls=True, lang = 'en', use_gpu=False) ## Run only once to download all required files
     if ocr_model == 'EasyOCR':
         ## Lauching EasyOCR
         easyocr_reader = easyocr.Reader(['en']) # this needs to run only once to load the model into memory
@@ -172,7 +256,7 @@ def transcription(detected_table_cells, ocr_model):
         # Sort contours by y-coordinate
         contours_sorted = sorted(contours, key=lambda c: cv2.boundingRect(c)[1])
 
-        max_rows = 45  # maximum rows, adjust based on your table's expected structure. Here, I had started with 45 rows and it was already giving good results 
+        max_rows = 43  # maximum rows, adjust based on your table's expected structure. Here, I had started with 45 rows and it was already giving good results . Previously had it at 43
         organized_rows = organize_method(contours_sorted, (image_height, image_width, image_channels), max_rows)
         # organized_rows = organize_and_merge_contours(contours_sorted, (image_height, image_width, image_channels), max_rows)
 
@@ -252,9 +336,9 @@ def transcription(detected_table_cells, ocr_model):
                             # 13: Raw line. Treat the image as a single text line, bypassing hacks that are Tesseract-specific.
 
 
-                        if ocr_model == 'PaddleOCR':
-                            ## Using PaddleOCR
-                            ocr_result = paddle_ocr.ocr('detected.png', cls = True)
+                        # if ocr_model == 'PaddleOCR':
+                        #     ## Using PaddleOCR
+                        #     ocr_result = paddle_ocr.ocr('detected.png', cls = True)
 
                         if ocr_model == 'EasyOCR':
                         # Using EasyOCR
@@ -263,8 +347,8 @@ def transcription(detected_table_cells, ocr_model):
                         if ocr_result is not None:
                             
                             # Maximum number of columns and rows. These can be changed depending on the tables in the images
-                            max_column_index = 27  # Number of columns in the table. 
-                            max_row_index = 45  # Estimated number of rows in the table  .Previosly had it at 57 and results were good.       even 56 was good
+                            max_column_index = 24  # Number of columns in the table. Total number is original unclipped image are 27
+                            max_row_index = 43  # Estimated number of rows in the table  .Previosly had it at 57 and results were good.       even 56 was good.     had this previously at 43
                             
                             cell_width = max(image_width // max_column_index, min_width_threshold)
                             cell_height = max(image_height//max_row_index, min_height_threshold)
@@ -299,17 +383,58 @@ def transcription(detected_table_cells, ocr_model):
                             #     cell_row = 1  # Set a default row if y is out of range  # Assuming y-coordinate translates to rows
 
 
-                            # Write the OCR value to the cell in the Excel sheet
-                            cell = ws.cell(row=row_index, column=column_index)
 
-                            # # Check if the cell is already populated
-                            # while cell.value is not None:
-                            #     # Move to the next row if the current cell is filled
-                            #     row_index += 1
-                            #     cell = ws.cell(row=row_index, column=column_index)
+                            # Ms Excel Template cell coordinates
+                            file_path = f'docs\Table_structure.xlsx'
+                            sheet_name = 'clipped_tilted'
+                            cell_coordinates = get_excel_cell_coordinates(file_path, sheet_name)
+                            sheet_dimensions = {'width': max_column_index, 'height': max_row_index}  # Assuming max column index and max row index
 
-                            # Set the cell value to the OCR result
-                            cell.value = ocr_result
+                            normalized_cell_coords = normalize_cell_coordinates(cell_coordinates, sheet_dimensions)
+
+
+                            # Find closest cell in template
+                            # Normalize bounding box center coordinates
+                            normalized_center_x = normalize_coordinates(center_x, image_width)
+                            normalized_center_y = normalize_coordinates(center_y, image_height)
+                            closest_cell = find_closest_cell(normalized_center_x, normalized_center_y, normalized_cell_coords)
+            
+
+                            # if closest_cell:
+                            #     cell = ws[closest_cell]
+                            #     cell.value = ocr_result
+
+                            if closest_cell:
+                            # Check if the cell is occupied and find the next empty cell in the same column
+                                cell_ref = closest_cell
+                                while ws[cell_ref].value is not None:
+                                    cell_ref = find_next_cell(ws, cell_ref)
+                                
+                                cell = ws[cell_ref]
+                                cell.value = ocr_result
+
+
+
+
+
+
+
+
+                            # # Write the OCR value to the cell in the Excel sheet
+                            # cell = ws.cell(row=row_index, column=column_index)
+
+
+                            # # # Set the cell value to the OCR result
+                            # # cell.value = ocr_result
+
+                            # current_cell_value = cell.value
+
+                            # # If the cell is empty, add the OCR result directly
+                            # if current_cell_value is None:
+                            #     cell.value = ocr_result
+                            # else:
+                            #     # If the cell already has content, append the new result
+                            #     cell.value = f"{current_cell_value}{ocr_result}"
 
                             # Set up border styles for excel output
                             thin_border = Border(
@@ -329,6 +454,9 @@ def transcription(detected_table_cells, ocr_model):
                         print('ROI is empty or invalid')
 
 
+        # Insert two columns on the left side of the excel sheet
+        ws.insert_cols(1, 2)
+        
         # Insert a new row at the top for headers
         ws.insert_rows(1, amount = 3)
 
