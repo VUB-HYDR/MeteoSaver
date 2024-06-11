@@ -53,6 +53,32 @@ def is_highlighted_green(cell, color):
         return fill.rgb == color
     return False
 
+# Create a function to plot with dashed lines for missing data
+def plot_with_missing(ax, series, label, color):
+    # Plot the main line
+    ax.plot(series.index, series, label=label, color=color, linestyle='-')
+    
+    # Create a mask for missing values
+    is_nan = series.isna()
+    
+    # Find start and end points of missing data segments
+    missing_segments = []
+    start = None
+    for i in range(len(is_nan)):
+        if is_nan.iloc[i] and start is None:
+            start = i
+        elif not is_nan.iloc[i] and start is not None:
+            missing_segments.append((start, i))
+            start = None
+    if start is not None:
+        missing_segments.append((start, len(is_nan)))
+    
+    # Plot dashed lines for missing data
+    for start, end in missing_segments:
+        if start > 0 and end < len(series):
+            ax.plot(series.index[start-1:end+1], series[start-1:end+1], linestyle='--', color=color)
+
+
 def select_and_convert_postprocessed_data(input_folder_path, output_folder_path, station):
 
     ''' Selects the confirmed data (from the quality control) and converts the excel file to a format ready to be converted to the Station Exchange Format
@@ -189,39 +215,7 @@ def select_and_convert_postprocessed_data(input_folder_path, output_folder_path,
 
     
     #****TWO PLOT OPTIONS***
-
     # (OPTION 1)
-    ## Plot continous (timeseries) lines without breaks in cases with missing data
-    # Drop rows with NaN values in temperature columns only for plotting
-    plot_df = merged_df.dropna(subset=['Max_Temperature', 'Min_Temperature', 'Avg_Temperature'])
-    plt.figure(figsize=(10, 6))
-    # plt.plot(plot_df['Date'], plot_df['Max_Temperature'], label='Maximum', color = 'red')
-    # plt.plot(plot_df['Date'], plot_df['Min_Temperature'], label='Minimum', color = 'blue')
-    # plt.plot(plot_df['Date'], plot_df['Avg_Temperature'], label='Average', color = 'orange')
-
-    # Plot Max Temperature with confidence interval band
-    plt.plot(plot_df['Date'], plot_df['Max_Temperature'], label='Maximum', color='red')
-    plt.fill_between(plot_df['Date'], plot_df['Max_Temperature'] - z * standard_error, plot_df['Max_Temperature'] + z * standard_error, color='red', alpha=0.2)
-
-    # Plot Min Temperature with confidence interval band
-    plt.plot(plot_df['Date'], plot_df['Min_Temperature'], label='Minimum', color='blue')
-    plt.fill_between(plot_df['Date'], plot_df['Min_Temperature'] - z * standard_error, plot_df['Min_Temperature'] + z * standard_error, color='blue', alpha=0.2)
-
-    # Plot Avg Temperature with confidence interval band
-    plt.plot(plot_df['Date'], plot_df['Avg_Temperature'], label='Average', color='orange')
-    plt.fill_between(plot_df['Date'], plot_df['Avg_Temperature'] - z * standard_error, plot_df['Avg_Temperature'] + z * standard_error, color='orange', alpha=0.2)
-
-    plt.xlabel('Date')
-    plt.ylabel('Temperature(°C)')
-    plt.title('Daily Max, Min, and Avg Temperatures at station '+str(station))
-    plt.legend()
-    plt.grid(True)
-    plt.savefig(f'{output_folder_path}/continous_temperature_plot.jpg', format='jpg')
-    plt.show()
-
-
-   
-    # (OPTION 2)
     # ## Plot continous (timeseries) lines with breaks in cases with missing data
     # Do not drop rows with NaN values
     plot_df = merged_df[['Date', 'Max_Temperature', 'Min_Temperature', 'Avg_Temperature']]
@@ -255,6 +249,67 @@ def select_and_convert_postprocessed_data(input_folder_path, output_folder_path,
     plt.savefig(f'{output_folder_path}/temperature_plot.jpg', format='jpg')
     plt.show()
 
+    # (OPTION 2)
+    # Plot with dashed lines for missing data
+    # Create a figure and axis for the plot
+    fig, ax = plt.subplots(figsize=(10, 6))
 
+    # Plot Max Temperature with confidence interval band
+    plot_with_missing(ax, plot_df['Max_Temperature'], 'Maximum', 'red')
+
+    # Plot Min Temperature with confidence interval band
+    plot_with_missing(ax, plot_df['Min_Temperature'], 'Minimum', 'blue')
+
+    # Plot Avg Temperature with confidence interval band
+    plot_with_missing(ax, plot_df['Avg_Temperature'], 'Average', 'orange')
+
+    # Set plot labels and title
+    ax.set_xlabel('Date')
+    ax.set_ylabel('Temperature (°C)')
+    ax.set_title('Daily Max, Min, and Avg Temperatures at station ' + str(station))
+    ax.legend()
+    ax.grid(True)
+
+    # Save the plot
+    plt.savefig(f'{output_folder_path}/continous_with_missing_data_as_dashed_temperature_plot.jpg', format='jpg')
+    plt.show()
+
+
+    # (OPTION 3)
+    ## Plot continous (timeseries) lines without breaks in cases with missing data
+    # Drop rows with NaN values in temperature columns only for plotting
+    plot_df = merged_df.dropna(subset=['Max_Temperature', 'Min_Temperature', 'Avg_Temperature'])
+    plt.figure(figsize=(10, 6))
+    # plt.plot(plot_df['Date'], plot_df['Max_Temperature'], label='Maximum', color = 'red')
+    # plt.plot(plot_df['Date'], plot_df['Min_Temperature'], label='Minimum', color = 'blue')
+    # plt.plot(plot_df['Date'], plot_df['Avg_Temperature'], label='Average', color = 'orange')
+
+    # Plot Max Temperature with confidence interval band
+    plt.plot(plot_df['Date'], plot_df['Max_Temperature'], label='Maximum', color='red')
+    plt.fill_between(plot_df['Date'], plot_df['Max_Temperature'] - z * standard_error, plot_df['Max_Temperature'] + z * standard_error, color='red', alpha=0.2)
+
+    # Plot Min Temperature with confidence interval band
+    plt.plot(plot_df['Date'], plot_df['Min_Temperature'], label='Minimum', color='blue')
+    plt.fill_between(plot_df['Date'], plot_df['Min_Temperature'] - z * standard_error, plot_df['Min_Temperature'] + z * standard_error, color='blue', alpha=0.2)
+
+    # Plot Avg Temperature with confidence interval band
+    plt.plot(plot_df['Date'], plot_df['Avg_Temperature'], label='Average', color='orange')
+    plt.fill_between(plot_df['Date'], plot_df['Avg_Temperature'] - z * standard_error, plot_df['Avg_Temperature'] + z * standard_error, color='orange', alpha=0.2)
+
+    plt.xlabel('Date')
+    plt.ylabel('Temperature(°C)')
+    plt.title('Daily Max, Min, and Avg Temperatures at station '+str(station))
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(f'{output_folder_path}/continous_temperature_plot.jpg', format='jpg')
+    plt.show()
+
+
+
+
+
+
+   
+    
 
 
