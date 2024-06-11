@@ -940,7 +940,7 @@ def post_processing(pre_processed_excel_file, postprocessed_data_dir, month_file
             if not D_highlighted:
                 if is_string_convertible_to_float(E.value) and is_string_convertible_to_float(F.value):
                     calculated_D = round(2 * float(F.value) - float(E.value), 1)
-                    if abs(float(D.value) - calculated_D) <= uncertainty_margin:
+                    if D_value_exists and abs(float(D.value) - calculated_D) <= uncertainty_margin:
                         highlight_change('FF6DCD57', D, new_version_of_file)
                     else:
                         D.value = calculated_D
@@ -948,7 +948,7 @@ def post_processing(pre_processed_excel_file, postprocessed_data_dir, month_file
             elif not E_highlighted:
                 if is_string_convertible_to_float(D.value) and is_string_convertible_to_float(F.value):
                     calculated_E = round(2 * float(F.value) - float(D.value), 1)
-                    if abs(float(E.value) - calculated_E) <= uncertainty_margin:
+                    if E_value_exists and abs(float(E.value) - calculated_E) <= uncertainty_margin:
                         highlight_change('FF6DCD57', E, new_version_of_file)
                     else:
                         E.value = calculated_E
@@ -957,7 +957,7 @@ def post_processing(pre_processed_excel_file, postprocessed_data_dir, month_file
             elif not F_highlighted:
                 if is_string_convertible_to_float(D.value) and is_string_convertible_to_float(E.value):
                     calculated_F = round((float(D.value) + float(E.value)) / 2, 1)
-                    if abs(float(F.value) - calculated_F) <= uncertainty_margin:    
+                    if F_value_exists and abs(float(F.value) - calculated_F) <= uncertainty_margin:    
                         highlight_change('FF6DCD57', F, new_version_of_file)
                     else:
                         F.value = calculated_F
@@ -1069,6 +1069,86 @@ def post_processing(pre_processed_excel_file, postprocessed_data_dir, month_file
     new_workbook.save(new_version_of_file)
 
 
+    # Check of Max, Min and Avg Temperatures using the Amplitude (Ampl.). This is column G
+    # where: Ampl. = Max - Min ..................... (1)
+    #        Ampl. = 2Avg - 2Min ................... (2)
+    #        Ampl. = 2Max - 2Avg ................... (3)
+    # The check the cells by rows, and manipulate where necessary
+    for row in new_worksheet.iter_rows(min_row=3, max_row=new_worksheet.max_row, min_col=4, max_col=7):
+        if row[0].row in excluded_rows:
+            continue       
+            
+        D, E, F, G = row
+
+        D_highlighted = is_highlighted(D, 'FF6DCD57')
+        E_highlighted = is_highlighted(E, 'FF6DCD57')
+        F_highlighted = is_highlighted(F, 'FF6DCD57')
+
+        # highlighted_count = D_highlighted + E_highlighted + F_highlighted
+
+        # Check if the highlighted cells have values
+        D_value_exists = is_string_convertible_to_float(D.value)
+        E_value_exists = is_string_convertible_to_float(E.value)
+        F_value_exists = is_string_convertible_to_float(F.value)
+        G_value_exists = is_string_convertible_to_float(G.value)
+
+        if G_value_exists:
+            G_value = float(G.value) # Here G_value is the Amplitude
+            if G_value >+ 100:
+                G_value /= 10
+            G.value = round(G_value, 1)
+        
+            # Calculate the amplitude based on the given formulas
+            if D_value_exists and E_value_exists:
+                D_value = float(D.value) # Max Temp
+                E_value = float(E.value) # Min Temp
+
+                Ampl_1 = D_value - E_value  # Ampl. = Max - Min ..................... (1)
+                if abs(G_value - Ampl_1) <= uncertainty_margin:
+                    # Highlight Ampl. cell green if the condition is true
+                    highlight_change('FF6DCD57', G, new_version_of_file)
+                    if not F_highlighted:
+                        calculated_F = round((float(D.value) + float(E.value)) / 2, 1)
+                        F.value = calculated_F
+                        highlight_change('FF6DCD57', D, new_version_of_file)
+                        highlight_change('FF6DCD57', E, new_version_of_file)
+                        highlight_change('FF6DCD57', F, new_version_of_file)
+            
+            if E_value_exists and F_value_exists:
+                E_value = float(E.value) # Min Temp
+                F_value = float(F.value) # Avg Temp
+
+                Ampl_2 = (2*F_value) - (2*E_value) # Ampl. = 2Avg - 2Min ................... (2)
+                if abs(G_value -Ampl_2) <= uncertainty_margin:
+                    # Highlight Ampl. cell green if the condition is true
+                    highlight_change('FF6DCD57', G, new_version_of_file)
+                    if not D_highlighted:
+                        calculated_D = round(2 * float(F.value) - float(E.value), 1)
+                        D.value = calculated_D
+                        highlight_change('FF6DCD57', D, new_version_of_file)
+                        highlight_change('FF6DCD57', E, new_version_of_file)
+                        highlight_change('FF6DCD57', F, new_version_of_file)
+            
+            if D_value_exists and F_value_exists:
+                D_value = float(D.value) # Max Temp
+                F_value = float(F.value) # Avg Temp
+
+                Ampl_3 = (2*D_value) - (2*F_value) # Ampl. = 2Max - 2Avg ................... (3)
+                if abs(G_value -Ampl_3) <= uncertainty_margin:
+                    # Highlight Ampl. cell green if the condition is true
+                    highlight_change('FF6DCD57', G, new_version_of_file)
+                    if not E_highlighted:
+                        calculated_E = round(2 * float(F.value) - float(D.value), 1)
+                        E.value = calculated_E
+                        highlight_change('FF6DCD57', D, new_version_of_file)
+                        highlight_change('FF6DCD57', E, new_version_of_file)
+                        highlight_change('FF6DCD57', F, new_version_of_file)
+
+    new_workbook.save(new_version_of_file)
+
+
+
+
     ###### THIS MAY NOT BE NECESSARY, BUT IN CASE ONE WANTS TO HAVE THEM RECALCULATED, UNCOVER THE CALCULATION BELOW ######
     # # New logic to recalculate 5/6 day totals and averages if all five/six cells above are highlighted green
     # total_rows = [8, 15, 22, 29, 36, 44]
@@ -1113,6 +1193,12 @@ def post_processing(pre_processed_excel_file, postprocessed_data_dir, month_file
                 highlight_change('FFFF0000', D, new_version_of_file)  # Red
                 highlight_change('FFFF0000', E, new_version_of_file)  # Red
                 highlight_change('FFFF0000', F, new_version_of_file)  # Red
+            
+            if not (Minimum_Temperature_Threshold < D_value < Maximum_Temperature_Threshold) or not (Minimum_Temperature_Threshold < E_value < Maximum_Temperature_Threshold) or not (Minimum_Temperature_Threshold < F_value < Maximum_Temperature_Threshold):
+                highlight_change('CC3300', D, new_version_of_file)  # Dark Red
+                highlight_change('CC3300', E, new_version_of_file)  # Dark Red
+                highlight_change('CC3300', F, new_version_of_file)  # Dark Red
+
             
 
     # Save the workbook after all changes

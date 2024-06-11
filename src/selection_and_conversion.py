@@ -183,41 +183,48 @@ def select_and_convert_postprocessed_data(input_folder_path, output_folder_path,
     # Plot and save the graph
     merged_df['Date'] = pd.to_datetime(merged_df[['Year', 'Month', 'Day']])
     
-    # Do not drop rows with NaN values
-    plot_df = merged_df[['Date', 'Max_Temperature', 'Min_Temperature', 'Avg_Temperature']]
+    # Assuming the standard error is 0.5 for the sake of demonstration
+    standard_error = 0.2   # here i used the uncertainity margin allowed in the post processing of the transcribed data
+    z = 1.96  # Z-score for 95% confidence interval
 
     
-    # # Drop rows with NaN values in temperature columns only for plotting
-    # plot_df = merged_df.dropna(subset=['Max_Temperature', 'Min_Temperature', 'Avg_Temperature'])
+    #****TWO PLOT OPTIONS***
 
+    # (OPTION 1)
+    ## Plot continous (timeseries) lines without breaks in cases with missing data
+    # Drop rows with NaN values in temperature columns only for plotting
+    plot_df = merged_df.dropna(subset=['Max_Temperature', 'Min_Temperature', 'Avg_Temperature'])
     plt.figure(figsize=(10, 6))
     # plt.plot(plot_df['Date'], plot_df['Max_Temperature'], label='Maximum', color = 'red')
     # plt.plot(plot_df['Date'], plot_df['Min_Temperature'], label='Minimum', color = 'blue')
     # plt.plot(plot_df['Date'], plot_df['Avg_Temperature'], label='Average', color = 'orange')
 
-    # Assuming the standard error is 0.5 for the sake of demonstration
-    standard_error = 0.2   # here i used the uncertainity margin allowed in the post processing of the transcribed data
-    z = 1.96  # Z-score for 95% confidence interval
+    # Plot Max Temperature with confidence interval band
+    plt.plot(plot_df['Date'], plot_df['Max_Temperature'], label='Maximum', color='red')
+    plt.fill_between(plot_df['Date'], plot_df['Max_Temperature'] - z * standard_error, plot_df['Max_Temperature'] + z * standard_error, color='red', alpha=0.2)
 
-    # # Plot Max Temperature with confidence interval band
-    # plt.plot(plot_df['Date'], plot_df['Max_Temperature'], label='Maximum', color='red')
-    # plt.fill_between(plot_df['Date'], plot_df['Max_Temperature'] - z * standard_error, plot_df['Max_Temperature'] + z * standard_error, color='red', alpha=0.2)
+    # Plot Min Temperature with confidence interval band
+    plt.plot(plot_df['Date'], plot_df['Min_Temperature'], label='Minimum', color='blue')
+    plt.fill_between(plot_df['Date'], plot_df['Min_Temperature'] - z * standard_error, plot_df['Min_Temperature'] + z * standard_error, color='blue', alpha=0.2)
 
-    # # Plot Min Temperature with confidence interval band
-    # plt.plot(plot_df['Date'], plot_df['Min_Temperature'], label='Minimum', color='blue')
-    # plt.fill_between(plot_df['Date'], plot_df['Min_Temperature'] - z * standard_error, plot_df['Min_Temperature'] + z * standard_error, color='blue', alpha=0.2)
+    # Plot Avg Temperature with confidence interval band
+    plt.plot(plot_df['Date'], plot_df['Avg_Temperature'], label='Average', color='orange')
+    plt.fill_between(plot_df['Date'], plot_df['Avg_Temperature'] - z * standard_error, plot_df['Avg_Temperature'] + z * standard_error, color='orange', alpha=0.2)
 
-    # # Plot Avg Temperature with confidence interval band
-    # plt.plot(plot_df['Date'], plot_df['Avg_Temperature'], label='Average', color='orange')
-    # plt.fill_between(plot_df['Date'], plot_df['Avg_Temperature'] - z * standard_error, plot_df['Avg_Temperature'] + z * standard_error, color='orange', alpha=0.2)
+    plt.xlabel('Date')
+    plt.ylabel('Temperature(°C)')
+    plt.title('Daily Max, Min, and Avg Temperatures at station '+str(station))
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(f'{output_folder_path}/continous_temperature_plot.jpg', format='jpg')
+    plt.show()
 
-    # plt.xlabel('Date')
-    # plt.ylabel('Temperature(°C)')
-    # plt.title('Daily Max, Min, and Avg Temperatures at station '+str(station))
-    # plt.legend()
-    # plt.grid(True)
-    # plt.savefig(f'{output_folder_path}/temperature_plot.jpg', format='jpg')
-    # plt.show()
+
+   
+    # (OPTION 2)
+    # ## Plot continous (timeseries) lines with breaks in cases with missing data
+    # Do not drop rows with NaN values
+    plot_df = merged_df[['Date', 'Max_Temperature', 'Min_Temperature', 'Avg_Temperature']]
 
     # Set the Date column as the index
     plot_df.set_index('Date', inplace=True)

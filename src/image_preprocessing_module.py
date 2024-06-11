@@ -22,3 +22,5 @@ def image_preprocessing(image_path):
     image = cv2.cvtColor(original_image, cv2.COLOR_BGR2GRAY)
 
     return image, original_image
+
+
