@@ -125,7 +125,7 @@ def table_detection(preprocessed_image, original_image):
         x, y, w, h = cv2.boundingRect(largest_contour)
         cv2.rectangle(preprocessed_image, (x, y), (x + w, y + h), (0, 255, 0), 2)
         table = preprocessed_image[y + 420:y + h -270 , x+200:x + w-170] # clip out the table (here, the largest contour) from the original image. ** - 420 here to clip out the header rows from the table image and -100 is for the below the table
-        table = deskew(table) # Deskew the image
+        #table = deskew(table) # Deskew the image
         table_original_image = original_image[y:y + h, x:x + w]
         cv2.imwrite('table_original_image.jpg', table_original_image)
     else:

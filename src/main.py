@@ -58,8 +58,10 @@ for month in range(len(station_data)):
     # Module 4: Post-processing
     start_time = datetime.now() # Start recording post-processing time
     month_filename = filenames[month] #restore naming of output files with station metadata
-    merge_excel_files(f'src\output\Midpoint_Excel_with_OCR_Results.xlsx', f'src\output\Top_Excel_with_OCR_Results.xlsx', f'{preprocessed_data_dir_station}\{month_filename}_preprocessed.xlsx', 4, 47) # this prioritizes the mid point coordinates of the bounding box to the top coordinates when placing the transcribed data into an excel sheet. But considers the best placement for both as double check.
+    # merge_excel_files(f'src\output\Midpoint_Excel_with_OCR_Results.xlsx', f'src\output\Top_Excel_with_OCR_Results.xlsx', f'{preprocessed_data_dir_station}\{month_filename}_preprocessed.xlsx', 4, 47) # this prioritizes the mid point coordinates of the bounding box to the top coordinates when placing the transcribed data into an excel sheet. But considers the best placement for both as double check.
+    merge_excel_files(f'src\output\Top_Excel_with_OCR_Results.xlsx', f'src\output\Midpoint_Excel_with_OCR_Results.xlsx', f'{preprocessed_data_dir_station}\{month_filename}_preprocessed.xlsx', 4, 47) # this prioritizes the mid point coordinates of the bounding box to the top coordinates when placing the transcribed data into an excel sheet. But considers the best placement for both as double check.
     post_processed_data = post_processing(f'{preprocessed_data_dir_station}\{month_filename}_preprocessed.xlsx', postprocessed_data_dir_station, month_filename)
+    # post_processed_data = post_processing(f'src\output\Top_Excel_with_OCR_Results.xlsx', postprocessed_data_dir_station, month_filename)
     end_time=datetime.now() # print total runtime of the code
     print('Duration of post-processing: {}'.format(end_time - start_time))
 
