@@ -2,6 +2,7 @@
 import os, argparse, glob, tempfile, shutil, warnings
 import cv2
 import numpy as np
+import matplotlib.pyplot as plt
 
 def detect_lines(image, kernel_size, iterations):
     # Convert to grayscale if necessary
@@ -75,7 +76,7 @@ def deskew(image):
 
 
 
-def table_detection(preprocessed_image, original_image):
+def table_detection(preprocessed_image, original_image, clip_up, clip_down, clip_left, clip_right):
     '''
     # Makes use of a pre-processed image (in grayscale) to detect the table from the record sheets
 
@@ -88,9 +89,10 @@ def table_detection(preprocessed_image, original_image):
     --------------
     detected_table_cells where:    
         detected_table_cells[0]: contours. Contours for the detected text in the table cells
-        detected_table_cells[1]: image_with_all_bounding_boxes. Bounding boxex for each cell for which clips will be made later before optical character recognition 
+        detected_table_cells[1]: image_with_all_bounding_boxes. Bounding boxes for each cell for which clips will be made later before optical character recognition. Note that this table doesnt include table headers and row labels
         detected_table_cells[2]: table_copy. Binarized
         detected_table_cells[3]: original table image
+        detected_table_cells[4]: full_detected_table_with_labels
 
     '''
 
@@ -124,14 +126,17 @@ def table_detection(preprocessed_image, original_image):
     if largest_contour is not None:
         x, y, w, h = cv2.boundingRect(largest_contour)
         cv2.rectangle(preprocessed_image, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        table = preprocessed_image[y + 420:y + h -270 , x+200:x + w-170] # clip out the table (here, the largest contour) from the original image. ** - 420 here to clip out the header rows from the table image and -100 is for the below the table
+        full_detected_table_with_labels = preprocessed_image[y:y + h, x:x + w] 
+        full_detected_table_with_labels = cv2.adaptiveThreshold(full_detected_table_with_labels, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 91,6) # Thresholding to reduce the image to black or white pixels
+        table = preprocessed_image[y + clip_up:y + h - clip_down , x + clip_left:x + w - clip_right] # clip out the table (here, the largest contour) from the original image. ** - 420 here to clip out the header rows from the table image and -270 is for the below the table
         #table = deskew(table) # Deskew the image
-        table_original_image = original_image[y:y + h, x:x + w]
-        cv2.imwrite('table_original_image.jpg', table_original_image)
+        table_original_image = original_image[y + clip_up:y + h - clip_down , x + clip_left:x + w - clip_right] # clip out the table (here, the largest contour) from the original image. ** - 420 here to clip out the header rows from the table image and -270 is for the below the table
+        # cv2.imwrite('table_original_image.jpg', table_original_image)
     else:
         table = preprocessed_image # Incase the main table is not detected as the largest contour, we just use the original image/ whole record sheet as the image with the table
         table_original_image = original_image
-        cv2.imwrite('table_original_image.jpg', table_original_image)
+        full_detected_table_with_labels = cv2.adaptiveThreshold(table, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 91,6) # Thresholding to reduce the image to black or white pixels
+        # cv2.imwrite('table_original_image.jpg', table_original_image)
 
 
     ## Detecting the vertical and horizontal (both dotted and bold) in the table
@@ -195,7 +200,21 @@ def table_detection(preprocessed_image, original_image):
     table_binarized = image_with_all_bounding_boxes.copy()
     
 
-    detected_table_cells = [contours, image_with_all_bounding_boxes, table_binarized, table_original_image]
+    detected_table_cells = [contours, image_with_all_bounding_boxes, table_binarized, table_original_image, full_detected_table_with_labels]
     
+    # Plots only for visualization purposes. Uncomment these to show the different steps
+
+    # plt.imshow(image_without_lines_noise_removed, cmap = 'gray') # figure showing detected table image with horizintal and vertical lines removed.
+    # plt.show() 
+
+    # plt.imshow(image_without_lines_2, cmap = 'gray') # figure showing text blobs on the detected table image with horizintal and vertical lines removed.
+    # plt.show()
+
+    # plt.imshow(detected_table_cells[4], cmap = 'gray') # unclipped detected table
+    # plt.show()
+
+    # plt.imshow(detected_table_cells[1]) # clipped detected table
+    # plt.show()
+
     return detected_table_cells
 

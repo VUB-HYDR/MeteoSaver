@@ -7,6 +7,7 @@ from src.table_detection_model import *
 from src.transcription_model import *
 from src.post_processing_module import *
 from src.selection_and_conversion import *
+from src.validation import *
 
 ## ***NEW
 # from src.template_matching import *
@@ -40,51 +41,57 @@ for month in range(len(station_data)):
     
     # Monthly Data for specific station
     month_data = station_data[month]
+    month_filename = filenames[month] #restore naming of output files with station metadata
 
     # Module 1: Pre-processing the original images
     preprocessed_image = image_preprocessing(month_data)[0]
     original_image = image_preprocessing(month_data)[1]
+    # Table detection
+    detected_table_cells = table_detection(preprocessed_image, original_image, clip_up = 430, clip_down = 270, clip_left = 200, clip_right = 150) # Here the clip_up, clip_down, clip_left, and clip_right ensure clipping of the detected table (table detected using ML) headers and row tables. Adjust this to your case study. Incase you would like to maintain the full table, set clip_up, clip_down, clip_left, clip_right = 0
 
-    # Module 2: Table detection
-    detected_table_cells = table_detection(preprocessed_image, original_image)
-
-    # Module 3: Transcription / Handwritten Text Recognition
+    # Module 2: Transcription / Handwritten Text Recognition
     start_time = datetime.now() # Start recording transcribing time
     ocr_model = 'Tesseract-OCR' # Selected OCR model out of: Tesseract-OCR, EasyOCR, PaddleOCR
     transcribed_table = transcription(detected_table_cells, ocr_model)
+    # merge_excel_files(f'src\output\Midpoint_Excel_with_OCR_Results.xlsx', f'src\output\Midpoint_Excel_with_OCR_Results.xlsx', f'{preprocessed_data_dir_station}\{month_filename}_preprocessed.xlsx', 1, 46) # this prioritizes the mid point coordinates of the bounding box to the top coordinates when placing the transcribed data into an excel sheet. But considers the best placement for both as double check.
+    merge_excel_files(f'src\output\Top_Excel_with_OCR_Results.xlsx', f'src\output\Midpoint_Excel_with_OCR_Results.xlsx', f'{preprocessed_data_dir_station}\{month_filename}_preprocessed.xlsx', 1, 46) # this prioritizes the mid point coordinates of the bounding box to the top coordinates when placing the transcribed data into an excel sheet. But considers the best placement for both as double check.
     end_time=datetime.now() # print total runtime of the code
     print('Duration of transcribing: {}'.format(end_time - start_time))
 
-    # Module 4: Post-processing
+    # Module 3: Quality Assessment and Quality Control
     start_time = datetime.now() # Start recording post-processing time
-    month_filename = filenames[month] #restore naming of output files with station metadata
-    # merge_excel_files(f'src\output\Midpoint_Excel_with_OCR_Results.xlsx', f'src\output\Top_Excel_with_OCR_Results.xlsx', f'{preprocessed_data_dir_station}\{month_filename}_preprocessed.xlsx', 4, 47) # this prioritizes the mid point coordinates of the bounding box to the top coordinates when placing the transcribed data into an excel sheet. But considers the best placement for both as double check.
-    merge_excel_files(f'src\output\Top_Excel_with_OCR_Results.xlsx', f'src\output\Midpoint_Excel_with_OCR_Results.xlsx', f'{preprocessed_data_dir_station}\{month_filename}_preprocessed.xlsx', 4, 47) # this prioritizes the mid point coordinates of the bounding box to the top coordinates when placing the transcribed data into an excel sheet. But considers the best placement for both as double check.
     post_processed_data = post_processing(f'{preprocessed_data_dir_station}\{month_filename}_preprocessed.xlsx', postprocessed_data_dir_station, month_filename)
     # post_processed_data = post_processing(f'src\output\Top_Excel_with_OCR_Results.xlsx', postprocessed_data_dir_station, month_filename)
     end_time=datetime.now() # print total runtime of the code
     print('Duration of post-processing: {}'.format(end_time - start_time))
-
+    
+    
 
 
 # Module 5: Selection of confirmed data (after Quality Control) and conversion to Station Exchange Format (SEF)
-
-selected_data_dir = r'C:\Users\dmuheki\OneDrive - Vrije Universiteit Brussel\PhD_Derrick_Muheki\21_Research\21_6_Analysis\21_6_2_Final_refined_daily_station_data'
+selected_data_dir = r'C:\Users\dmuheki\OneDrive - Vrije Universiteit Brussel\PhD_Derrick_Muheki\21_Research\21_6_Analysis\21_6_3_Final_refined_daily_station_data'
 selected_data_dir_station = os.path.join(selected_data_dir, station) # Folder for every station (for postprocessed data)
 os.makedirs(selected_data_dir_station, exist_ok=True) # Create the directory if it doesn't exist
 selected_and_converted_data = select_and_convert_postprocessed_data(postprocessed_data_dir_station, selected_data_dir_station, station)
 
-
+# Validation: This is step is only done for already manually transcibed data
+manually_transcribed_data_dir = r'C:\Users\dmuheki\OneDrive - Vrije Universiteit Brussel\PhD_Derrick_Muheki\21_Research\21_6_Analysis\21_6_1_Postprocessing_data\Manually_transcribed_data'
+validation_dir = r'C:\Users\dmuheki\OneDrive - Vrije Universiteit Brussel\PhD_Derrick_Muheki\21_Research\21_6_Analysis\21_6_2_Validation'
+validate(manually_transcribed_data_dir, postprocessed_data_dir_station, validation_dir, station)
 
 ######## PLANNED VALIDATION CHECKS with already digitized INERA data
 
-# ## Validation. This will be implemetend as the last step for selected data
-# # Accuracy check# Example usage
+## Validation. This will be implemetend as the last step for selected data
+# Accuracy check# Example usage
 # new_file1 = r'C:\Users\dmuheki\OneDrive - Vrije Universiteit Brussel\PhD_Derrick_Muheki\21_Research\21_6_Analysis\21_6_1_Postprocessing_data\DUMMY_FOLDER\DUMMY_FOLDER_196905_SF.JPG_post_processed.xlsx'  # Workbook with highlighted cells
-# file2 = r'C:\Users\dmuheki\OneDrive - Vrije Universiteit Brussel\PhD_Derrick_Muheki\21_Research\21_6_Analysis\21_6_1_Postprocessing_data\DUMMY_FOLDER\IMG_1361.JPG_manually_entered_temperatures.xlsx'  # Workbook with correct values
+# file2 = r'C:\Users\dmuheki\OneDrive - Vrije Universiteit Brussel\PhD_Derrick_Muheki\21_Research\21_6_Analysis\21_6_1_Postprocessing_data\Manually_transcribed_data\DUMMY_FOLDER_196905_SF.JPG_manually_entered_temperatures.xlsx'  # Workbook with correct values
 # compare_workbooks(new_file1, file2)
+
 
 # old_file1 = r'C:\Users\dmuheki\OneDrive - Vrije Universiteit Brussel\PhD_Derrick_Muheki\21_Research\21_6_Analysis\21_6_1_Postprocessing_data\DUMMY_FOLDER\IMG_1361.JPG_post_processed.xlsx'  # Workbook with highlighted cells
 # file2 = r'C:\Users\dmuheki\OneDrive - Vrije Universiteit Brussel\PhD_Derrick_Muheki\21_Research\21_6_Analysis\21_6_1_Postprocessing_data\DUMMY_FOLDER\IMG_1361.JPG_manually_entered_temperatures.xlsx'  # Workbook with correct values
 # compare_workbooks(old_file1, file2)
+
+
+
 

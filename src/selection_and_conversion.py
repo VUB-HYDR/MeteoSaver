@@ -209,7 +209,7 @@ def select_and_convert_postprocessed_data(input_folder_path, output_folder_path,
     # Plot and save the graph
     merged_df['Date'] = pd.to_datetime(merged_df[['Year', 'Month', 'Day']])
     
-    # Assuming the standard error is 0.5 for the sake of demonstration
+    # Assuming the standard error is 0.2 for the sake of demonstration
     standard_error = 0.2   # here i used the uncertainity margin allowed in the post processing of the transcribed data
     z = 1.96  # Z-score for 95% confidence interval
 
@@ -270,6 +270,7 @@ def select_and_convert_postprocessed_data(input_folder_path, output_folder_path,
     ax.legend()
     ax.grid(True)
 
+
     # Save the plot
     plt.savefig(f'{output_folder_path}/continous_with_missing_data_as_dashed_temperature_plot.jpg', format='jpg')
     plt.show()
@@ -299,8 +300,15 @@ def select_and_convert_postprocessed_data(input_folder_path, output_folder_path,
     plt.xlabel('Date')
     plt.ylabel('Temperature(°C)')
     plt.title('Daily Max, Min, and Avg Temperatures at station '+str(station))
-    plt.legend()
     plt.grid(True)
+
+    # Rotate x-axis labels
+    plt.xticks(rotation=45)
+    plt.gcf().autofmt_xdate()
+
+    # Place legend at the top right corner without overlapping the data
+    plt.legend(loc='upper right', bbox_to_anchor=(1, 1), frameon=False)
+
     plt.savefig(f'{output_folder_path}/continous_temperature_plot.jpg', format='jpg')
     plt.show()
 

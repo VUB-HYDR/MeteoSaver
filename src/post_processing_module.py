@@ -4,7 +4,9 @@ from openpyxl.styles import PatternFill
 import shutil
 from openpyxl.styles import Border, Side
 from openpyxl.styles import Alignment
+from openpyxl.utils.dataframe import dataframe_to_rows
 import pandas as pd
+from statistics import mean
 
 # Setting up the current working directory; for both the input and output folders
 cwd = os.getcwd()
@@ -131,23 +133,21 @@ def merge_excel_files(file1, file2, output_file, start_row, end_row):
     --------------
     file1: Excel sheet. Preprocessed transcribed data organised in rows using the mid point coordinates of the bounding boxes (contours).
     file2: Excel sheet. Preprocessed transcribed data organised in rows using the top coordinates of the bounding boxes(contours).
-    output_file: Path. Location to store the output excel sheet. Merged file of file1 and file2 above to cross check to ensure propoer placement of cells in their rescpective rows
+    output_file: Path. Location to store the output excel sheet. Merged file of file1 and file2 above to cross check to ensure proper placement of cells in their respective rows
     start_row: Integer. Start row (beneath the headers)
     end_row: Integer. Last row
 
     Returns
-    -------------- 
+    --------------
     Merged excel file: Now the pre-processed excel file.
-
     '''
 
-    # Load the Excel files into DataFrames, ensuring they include headers if present
-    df1 = pd.read_excel(file1)
-    df2 = pd.read_excel(file2)
+    # Load the Excel files into DataFrames without headers
+    df1 = pd.read_excel(file1, header=None)
+    df2 = pd.read_excel(file2, header=None)
 
-    # Load headers separately if you need to prepend them later
-    headers = pd.read_excel(file1, header= 0, nrows=3)  # Read only the first three rows for headers
-
+    # # Load the first three rows as headers separately from file1
+    # headers = pd.read_excel(file1, header=None, nrows=3)
 
     # If the indices are not simple integers or do not align with Excel rows as expected,
     # you might need to reset them or adjust how the Excel file is being read (e.g., `index_col=None`)
@@ -156,11 +156,11 @@ def merge_excel_files(file1, file2, output_file, start_row, end_row):
 
     # Convert start_row and end_row to zero-based index for Python
     start_idx = start_row - 1  # Convert 1-based index to 0-based
-    end_idx = end_row -1    # Convert 1-based index to 0-based
+    end_idx = end_row - 1  # Convert 1-based index to 0-based
 
     # Slice to only include the range from start_idx to end_idx
-    df1 = df1.iloc[start_idx:end_idx+1]
-    df2 = df2.iloc[start_idx:end_idx+1]
+    df1 = df1.iloc[start_idx:end_idx + 1]
+    df2 = df2.iloc[start_idx:end_idx + 1]
 
     # Initialize a new DataFrame to hold merged results
     merged_df = pd.DataFrame(index=df1.index, columns=df1.columns)
@@ -176,14 +176,173 @@ def merge_excel_files(file1, file2, output_file, start_row, end_row):
             else:
                 merged_df.at[idx, col] = val2
 
-    # Write the merged DataFrame to a new Excel file
-    # merged_df.to_excel(output_file)
+    
+    # Write the final DataFrame to a new Excel file without the index
+    # merged_df.to_excel(output_file, index=False, header=False)
 
-    # Prepend headers if needed
-    final_df = pd.concat([headers, merged_df], ignore_index=True)
+    # Create a new workbook and select the active worksheet
+    new_workbook = openpyxl.Workbook()
+    new_worksheet = new_workbook.active
 
-    # Write the merged DataFrame to a new Excel file without the index
-    final_df.to_excel(output_file, index=False, header=None)  # Set header=None if headers are manually handled
+    # Append the merged DataFrame to the new worksheet
+    for r_idx, row in enumerate(dataframe_to_rows(merged_df, index=False, header=False), start=1):
+        for c_idx, value in enumerate(row, start=1):
+            new_worksheet.cell(row=r_idx, column=c_idx, value=value)
+
+    # Merge cells for multi-column headers
+    new_worksheet.merge_cells(start_row=1, start_column=1, end_row=3, end_column=1) #No de la pentade
+    new_worksheet.merge_cells(start_row=1, start_column=2, end_row=3, end_column=2) #Date
+    new_worksheet.merge_cells(start_row=1, start_column=3, end_row=3, end_column=3) #Bellani
+    new_worksheet.merge_cells(start_row=1, start_column=4, end_row=1, end_column=8) #Températures extrêmes
+    new_worksheet.merge_cells(start_row=1, start_column=9, end_row=1, end_column=10) #Evaportation
+    new_worksheet.merge_cells(start_row=1, start_column=11, end_row=3, end_column=11) #Pluies
+    new_worksheet.merge_cells(start_row=1, start_column=12, end_row=1, end_column=16) #Température et Humidité de l'air à 6 heures
+    new_worksheet.merge_cells(start_row=1, start_column=17, end_row=1, end_column=21) #Température et Humidité de l'air à 15 heures
+    new_worksheet.merge_cells(start_row=1, start_column=22, end_row=1, end_column=26) #Température et Humidité de l'air à 18 heures
+    new_worksheet.merge_cells(start_row=1, start_column=27, end_row=3, end_column=27) #Date
+    # subheaders
+    new_worksheet.merge_cells(start_row=2, start_column=4, end_row=2, end_column=7) #Abri
+    new_worksheet.merge_cells(start_row=2, start_column=9, end_row=2, end_column=10) #Piche
+    new_worksheet.merge_cells(start_row=2, start_column=12, end_row=2, end_column=16) #(Psychromètre a aspiration)
+    new_worksheet.merge_cells(start_row=2, start_column=17, end_row=2, end_column=21) #(Psychromètre a aspiration)
+    new_worksheet.merge_cells(start_row=2, start_column=22, end_row=2, end_column=26) #(Psychromètre a aspiration)
+
+    # Set up border styles for excel output
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin'))
+
+    # Loop through cells to apply borders
+    for row in new_worksheet.iter_rows(min_row=1, max_row=new_worksheet.max_row, min_col=1, max_col=new_worksheet.max_column):
+        for cell in row:
+            cell.border = thin_border
+    new_workbook.save(output_file)
+    
+    # Iterate through all cells and set the alignment
+    for row in new_worksheet.iter_rows():
+        for cell in row:
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+    
+    # Read headers from the first row of one of the files
+    workbook = openpyxl.load_workbook(file1)
+    copy_file1 = workbook.active
+    headers = [cell.value for cell in copy_file1[1]]  
+    for row in new_worksheet.iter_rows(min_row=1, max_row=1, min_col=1, max_col=new_worksheet.max_column):
+        for col_num, header in enumerate(headers, start=1):
+            cell = new_worksheet.cell(row=1, column=col_num, value=header)
+            if header == "No de la pentade" or header == "Date" or header == "Bellani (gr. Cal/cm2) 6-6h" or header == "Pluies en mm. 6-6h":
+                cell.alignment = Alignment(textRotation=90)
+
+    # Save the workbook
+    new_workbook.save(output_file)
+
+
+    # # Create a new workbook and select the active worksheet
+    # new_workbook = openpyxl.Workbook()
+    # new_worksheet = new_workbook.active
+
+    # # Add the headers to the first three rows
+    # for row_num, header_row in enumerate(headers.values, start=1):
+    #     for col_num, header in enumerate(header_row, start=1):
+    #         cell = new_worksheet.cell(row=row_num, column=col_num, value=header)
+    #         if header in ["No de la pentade", "Date", "Bellani (gr. Cal/cm2) 6-6h", "Pluies en mm. 6-6h"]:
+    #             cell.alignment = Alignment(textRotation=90)
+
+    # # Merge cells for multi-column headers
+    # new_worksheet.merge_cells(start_row=1, start_column=1, end_row=3, end_column=1)  # No de la pentade
+    # new_worksheet.merge_cells(start_row=1, start_column=2, end_row=3, end_column=2)  # Date
+    # new_worksheet.merge_cells(start_row=1, start_column=3, end_row=3, end_column=3)  # Bellani
+    # new_worksheet.merge_cells(start_row=1, start_column=4, end_row=1, end_column=8)  # Températures extrêmes
+    # new_worksheet.merge_cells(start_row=1, start_column=9, end_row=1, end_column=10)  # Evaporation
+    # new_worksheet.merge_cells(start_row=1, start_column=11, end_row=3, end_column=11)  # Pluies
+    # new_worksheet.merge_cells(start_row=1, start_column=12, end_row=1, end_column=16)  # Température et Humidité de l'air à 6 heures
+    # new_worksheet.merge_cells(start_row=1, start_column=17, end_row=1, end_column=21)  # Température et Humidité de l'air à 15 heures
+    # new_worksheet.merge_cells(start_row=1, start_column=22, end_row=1, end_column=26)  # Température et Humidité de l'air à 18 heures
+    # new_worksheet.merge_cells(start_row=1, start_column=27, end_row=3, end_column=27)  # Date
+    # new_worksheet.merge_cells(start_row=2, start_column=4, end_row=2, end_column=7)  # Abri
+    # new_worksheet.merge_cells(start_row=2, start_column=9, end_row=2, end_column=10)  # Piche
+    # new_worksheet.merge_cells(start_row=2, start_column=12, end_row=2, end_column=16)  # (Psychromètre a aspiration)
+    # new_worksheet.merge_cells(start_row=2, start_column=17, end_row=2, end_column=21)  # (Psychromètre a aspiration)
+    # new_worksheet.merge_cells(start_row=2, start_column=22, end_row=2, end_column=26)  # (Psychromètre a aspiration)
+
+    # # Append the merged DataFrame to the new worksheet
+    # for r_idx, row in enumerate(dataframe_to_rows(merged_df, index=False, header=False), start=4):
+    #     for c_idx, value in enumerate(row, start=1):
+    #         new_worksheet.cell(row=r_idx, column=c_idx, value=value)
+
+    # # Save the workbook
+    # new_workbook.save(output_file)
+
+
+
+
+
+
+
+
+# def merge_excel_files(file1, file2, output_file, start_row, end_row):
+#     '''Merges two excel files (as a check): the transcribed excel organised in rows using the top coordinates of the bounding boxes and that organised in rows using the mid point coordinates.
+
+#     Parameters
+#     --------------
+#     file1: Excel sheet. Preprocessed transcribed data organised in rows using the mid point coordinates of the bounding boxes (contours).
+#     file2: Excel sheet. Preprocessed transcribed data organised in rows using the top coordinates of the bounding boxes(contours).
+#     output_file: Path. Location to store the output excel sheet. Merged file of file1 and file2 above to cross check to ensure propoer placement of cells in their rescpective rows
+#     start_row: Integer. Start row (beneath the headers)
+#     end_row: Integer. Last row
+
+#     Returns
+#     -------------- 
+#     Merged excel file: Now the pre-processed excel file.
+
+#     '''
+
+#     # Load the Excel files into DataFrames, ensuring they include headers if present
+#     df1 = pd.read_excel(file1)
+#     df2 = pd.read_excel(file2)
+
+#     # Load headers separately if you need to prepend them later
+#     headers = pd.read_excel(file1, header= 0, nrows=start_row-1)  # Read only the first three rows for headers
+
+
+#     # If the indices are not simple integers or do not align with Excel rows as expected,
+#     # you might need to reset them or adjust how the Excel file is being read (e.g., `index_col=None`)
+#     df1 = df1.reset_index(drop=True)
+#     df2 = df2.reset_index(drop=True)
+
+#     # Convert start_row and end_row to zero-based index for Python
+#     start_idx = start_row - 1  # Convert 1-based index to 0-based
+#     end_idx = end_row -1    # Convert 1-based index to 0-based
+
+#     # Slice to only include the range from start_idx to end_idx
+#     df1 = df1.iloc[start_idx:end_idx+1]
+#     df2 = df2.iloc[start_idx:end_idx+1]
+
+#     # Initialize a new DataFrame to hold merged results
+#     merged_df = pd.DataFrame(index=df1.index, columns=df1.columns)
+
+#     # Iterate over rows by index (assuming the indices are aligned)
+#     for idx in df1.index:
+#         for col in df1.columns:
+#             val1 = df1.at[idx, col]
+#             val2 = df2.at[idx, col]
+#             # Simple merge logic: prefer non-empty values from df1, then df2
+#             if pd.notna(val1):
+#                 merged_df.at[idx, col] = val1
+#             else:
+#                 merged_df.at[idx, col] = val2
+
+#     # Write the merged DataFrame to a new Excel file
+#     # merged_df.to_excel(output_file)
+
+#     # Prepend headers if needed
+#     final_df = pd.concat([headers, merged_df], ignore_index=True)
+
+#     # Write the merged DataFrame to a new Excel file without the index
+#     final_df.to_excel(output_file, index=False, header=None)  # Set header=None if headers are manually handled
+
 
 
 
@@ -422,7 +581,7 @@ def post_processing(pre_processed_excel_file, postprocessed_data_dir, month_file
 
     # Inorder to already avoud very large values right from the start, here we edit values that have more than 4 digits (thousands) in certain rows where we know it is impossible
     # List of rows to exclude from processing
-    excluded_rows = [1, 2, 8, 15, 22, 29, 36, 44,46] # Headers and 5 day totals/ totals
+    excluded_rows = [1, 2, 3, 9, 16, 23, 30, 37, 45, 47] # Headers and 5 day totals/ totals
     excluded_columns = [3, 15, 20, 25]  # Example of middle columns to exclude: with U
     # Iterate over all rows in the worksheet
     for row in new_worksheet.iter_rows(min_col=3, max_col=new_worksheet.max_column-1):
@@ -452,27 +611,27 @@ def post_processing(pre_processed_excel_file, postprocessed_data_dir, month_file
                 cell.value = (float(cell.value))/10 # Divide the cell value by 10
                 new_workbook.save(new_version_of_file) # Save the modified workbook
 
-    # Label Date, Total and Average rows
-    row_labels = ["1","2", "3", "4", "5", "Tot.", "Moy.", "6", "7", "8", "9", "10", "Tot.", "Moy.", "11", "12", "13", "14", "15", "Tot.", "Moy.", "16", "17", "18", "19", "20", "Tot.", "Moy.", "21", "22", "23", "24", "25", "Tot.", "Moy.", "26", "27", "28", "29", "30", "31", "Tot.", "Moy.", "Tot.", "Moy."]
-    # Update the cells in the second and last column with the new values
-    columns = [2, 27]
-    for col in columns:
-        for i, value in enumerate(row_labels, start=3):
-            cell = new_worksheet.cell(row=i, column=col)
-            cell.value = value
-            new_workbook.save(new_version_of_file) # Save the modified workbook
-    # Save Excel file
-    new_workbook.save(new_version_of_file)
+    # # Label Date, Total and Average rows
+    # row_labels = ["1","2", "3", "4", "5", "Tot.", "Moy.", "6", "7", "8", "9", "10", "Tot.", "Moy.", "11", "12", "13", "14", "15", "Tot.", "Moy.", "16", "17", "18", "19", "20", "Tot.", "Moy.", "21", "22", "23", "24", "25", "Tot.", "Moy.", "26", "27", "28", "29", "30", "31", "Tot.", "Moy.", "Tot.", "Moy."]
+    # # Update the cells in the second and last column with the new values
+    # columns = [2, 27]
+    # for col in columns:
+    #     for i, value in enumerate(row_labels, start=3):
+    #         cell = new_worksheet.cell(row=i, column=col)
+    #         cell.value = value
+    #         new_workbook.save(new_version_of_file) # Save the modified workbook
+    # # Save Excel file
+    # new_workbook.save(new_version_of_file)
 
     # Delete all text in the first column (No de la pentade)
     # Calculate the number of rows in the worksheet
-    max_row = new_worksheet.max_row
-    # Iterate from row 4 to the last row (Rows 1-3 are headers)
-    for row in range(3, max_row + 1):
-        cell = new_worksheet.cell(row=row, column=1)
-        cell.value = None  # Clear the content of the cell
-        # Save Excel file
-    new_workbook.save(new_version_of_file)
+    # max_row = new_worksheet.max_row
+    # # Iterate from row 4 to the last row (Rows 1-3 are headers)
+    # for row in range(3, max_row + 1):
+    #     cell = new_worksheet.cell(row=row, column=1)
+    #     cell.value = None  # Clear the content of the cell
+    #     # Save Excel file
+    # new_workbook.save(new_version_of_file)
     
 
     # for row in range(4,50):
@@ -483,17 +642,17 @@ def post_processing(pre_processed_excel_file, postprocessed_data_dir, month_file
 
     # Creating thresholds for temperature values
     Maximum_Temperature_Threshold = 40  # Max reported temperatures during 1950-1959 were 30-31 degC + increasing temperatures in 1960-1990 approximated at 0.60°C to 1.62°C per 30 yr period (Alsdorf et.al, 2016)
-    Minimum_Temperature_Threshold = 10  # Min reported temperatures during 1950-1959 were 18-20 degC  et.al, 2016)       
+    Minimum_Temperature_Threshold = 5  # Min reported temperatures during 1950-1959 were 18-20 degC  et.al, 2016). However lover values of up to 9 and 10°C are noted in some sheets        
 
     # Cell coordinates to check the totals
     # Rows
-    rows = [8, 15, 22, 29, 36, 44]
+    rows = [9, 16, 23, 30, 37, 45]
     #rows = [9] #just for trial
 
     for row in rows:
 
         # Columns
-        columns = ['D', 'E', 'F', 'K'] # Where these represent [ Max Temperature, Min Temperature, Average Temperature, Precipitation] 
+        columns = ['D', 'E', 'F'] # Where these represent [ Max Temperature, Min Temperature, Average Temperature, Precipitation] 
         #columns = ['E'] #just for trial
 
         for column in columns:
@@ -554,7 +713,7 @@ def post_processing(pre_processed_excel_file, postprocessed_data_dir, month_file
             # Note, while most totals are based on 5-day values, some months with 31 days have 6-day totals or the last days. 
             # Thus here, the definition of '5-day total' is used for both the 5-day and 6-day totals for simplicity since the value is only used as Quality control check of the daily values
             
-            if row in [8, 15, 22, 29, 36]: # rows with only 5-day totals for all months
+            if row in [9, 16, 23, 30, 37]: # rows with only 5-day totals for all months
                 offset_cells = 5
             
             else: # last rows with 6-day totals during months with 31 days or EVEN less than 5-days totals during February
@@ -694,8 +853,9 @@ def post_processing(pre_processed_excel_file, postprocessed_data_dir, month_file
                                     new_workbook.save(new_version_of_file)
                                 else:
                                     # Highlight to show that value is out of the expected bounds
-                                    new_value = (cell_coordinate_in_worksheet.value)/10.0  #try dividing by 10, to avoid very large values due to missing decimal point
-                                    cell_coordinate_in_worksheet.value = new_value
+                                    if cell_coordinate_in_worksheet.value >= 100:
+                                        new_value = (cell_coordinate_in_worksheet.value)/10.0  #try dividing by 10, to avoid very large values due to missing decimal point
+                                        cell_coordinate_in_worksheet.value = new_value
 
 
                                     highlight_change('CC3300', cell_coordinate_in_worksheet, new_version_of_file) #CC3300 is Dark Red 
@@ -907,13 +1067,13 @@ def post_processing(pre_processed_excel_file, postprocessed_data_dir, month_file
     # Check row by row. If two of the three temperature values (min, max or average) are correct (i.e. checked by the 5/6 day averages or total, and thus highlighted with green) and therefore correct the third value
     # First lets assign a margin of uncertainty
     uncertainty_margin = 0.2  # This because of the rounding off thats done usually during the calculation of the average daily temperature i.e incase value has 2 decimal points
-    # Rows to exclude
-    excluded_rows = [8, 9, 15, 16, 22, 23, 29, 30, 36, 37, 44, 45, 46, 47] # These are the rows with 5/6  day total or averages. They are excluded there because these totals and averages will be re-checked, and/or recalculated later if necessary 
+    # # Rows to exclude
+    # excluded_rows = [8, 9, 15, 16, 22, 23, 29, 30, 36, 37, 44, 45, 46, 47] # These are the rows with 5/6  day total or averages. They are excluded there because these totals and averages will be re-checked, and/or recalculated later if necessary 
     
     # The check the cells by rows, and manipulate where necessary
-    for row in new_worksheet.iter_rows(min_row=3, max_row=new_worksheet.max_row, min_col=4, max_col=6):
-        if row[0].row in excluded_rows:
-            continue       
+    for row in new_worksheet.iter_rows(min_row=4, max_row=new_worksheet.max_row, min_col=4, max_col=6):
+        # if row[0].row in excluded_rows:
+        #     continue       
             
         D, E, F = row
         D_highlighted = is_highlighted(D, 'FF6DCD57')
@@ -930,10 +1090,12 @@ def post_processing(pre_processed_excel_file, postprocessed_data_dir, month_file
         exists_count = D_value_exists + E_value_exists + F_value_exists
 
         # Ensure that value in column D is always greater than value in column E
-        if D_value_exists and E_value_exists and float(D.value) <= float(E.value):
-            highlight_change('FFFF0000', D, new_version_of_file)  # Red
-            highlight_change('FFFF0000', E, new_version_of_file)  # Red
-            continue
+        # if D_value_exists and E_value_exists and float(D.value) <= float(E.value):
+        #     if not D_highlighted:
+        #         highlight_change('FFFF0000', D, new_version_of_file)  # Red
+        #     if not E_highlighted:
+        #         highlight_change('FFFF0000', E, new_version_of_file)  # Red
+        #     continue
 
 
         if highlighted_count == 2:
@@ -1074,9 +1236,9 @@ def post_processing(pre_processed_excel_file, postprocessed_data_dir, month_file
     #        Ampl. = 2Avg - 2Min ................... (2)
     #        Ampl. = 2Max - 2Avg ................... (3)
     # The check the cells by rows, and manipulate where necessary
-    for row in new_worksheet.iter_rows(min_row=3, max_row=new_worksheet.max_row, min_col=4, max_col=7):
-        if row[0].row in excluded_rows:
-            continue       
+    for row in new_worksheet.iter_rows(min_row=4, max_row=new_worksheet.max_row, min_col=4, max_col=7):
+        # if row[0].row in excluded_rows:
+        #     continue       
             
         D, E, F, G = row
 
@@ -1175,7 +1337,11 @@ def post_processing(pre_processed_excel_file, postprocessed_data_dir, month_file
 
 
     # Final check the cells by rows to ensure that Min temp < Avg temp < Max Temp, and that re-checks for 
-    for row in new_worksheet.iter_rows(min_row=3, max_row=new_worksheet.max_row, min_col=4, max_col=6):
+    excluded_rows = [9, 16, 23, 30, 37, 45] # These are the rows with 5/6  day totals since totals are usually larger than thresholds.  
+    for row in new_worksheet.iter_rows(min_row=4, max_row=new_worksheet.max_row, min_col=4, max_col=6):
+        if row[0].row in excluded_rows:
+            continue 
+        
         D, E, F = row
 
         # Check if the highlighted cells have values
@@ -1188,91 +1354,134 @@ def post_processing(pre_processed_excel_file, postprocessed_data_dir, month_file
             E_value = float(E.value)
             F_value = float(F.value)
 
-            # Ensure that Min temp < Avg temp < Max Temp
-            if not (E_value < F_value < D_value):
-                highlight_change('FFFF0000', D, new_version_of_file)  # Red
-                highlight_change('FFFF0000', E, new_version_of_file)  # Red
-                highlight_change('FFFF0000', F, new_version_of_file)  # Red
+            # # Ensure that Min temp < Avg temp < Max Temp
+            # if not (E_value < F_value < D_value):
+            #     highlight_change('FFFF0000', D, new_version_of_file)  # Red
+            #     highlight_change('FFFF0000', E, new_version_of_file)  # Red
+            #     highlight_change('FFFF0000', F, new_version_of_file)  # Red
             
-            if not (Minimum_Temperature_Threshold < D_value < Maximum_Temperature_Threshold) or not (Minimum_Temperature_Threshold < E_value < Maximum_Temperature_Threshold) or not (Minimum_Temperature_Threshold < F_value < Maximum_Temperature_Threshold):
-                highlight_change('CC3300', D, new_version_of_file)  # Dark Red
-                highlight_change('CC3300', E, new_version_of_file)  # Dark Red
-                highlight_change('CC3300', F, new_version_of_file)  # Dark Red
+            # if not (Minimum_Temperature_Threshold < D_value < Maximum_Temperature_Threshold) or not (Minimum_Temperature_Threshold < E_value < Maximum_Temperature_Threshold) or not (Minimum_Temperature_Threshold < F_value < Maximum_Temperature_Threshold):
+            #     highlight_change('CC3300', D, new_version_of_file)  # Dark Red
+            #     highlight_change('CC3300', E, new_version_of_file)  # Dark Red
+            #     highlight_change('CC3300', F, new_version_of_file)  # Dark Red
 
+            if not (Minimum_Temperature_Threshold < D_value < Maximum_Temperature_Threshold):
+                highlight_change('CC3300', D, new_version_of_file)  # Dark Red
+            if not (Minimum_Temperature_Threshold < E_value < Maximum_Temperature_Threshold):
+                highlight_change('CC3300', E, new_version_of_file)  # Dark Red
+            if not (Minimum_Temperature_Threshold < F_value < Maximum_Temperature_Threshold):
+                highlight_change('CC3300', F, new_version_of_file)  # Dark Red
             
 
     # Save the workbook after all changes
     new_workbook.save(new_version_of_file)
 
     
+    # New logic to recalculate 5/6 day totals if all five/six cells above are highlighted green
+    total_rows = [9, 16, 23, 30, 37, 45]
+    columns = ['D', 'E', 'F']   # Max, Min and Ave Temperatures
 
-    # # New logic to recalculate 5/6 day averages if all five/six cells above are highlighted green
-    # average_rows = [9, 16, 23, 30, 37, 45]
-    # columns = ['D', 'E', 'F', 'K']   # Max, Min and Ave Temperatures & Precipitation
+    for row in total_rows:
+        for col in columns:
+            # Check if the total is already highlighted
+            total_highlighted = is_highlighted(new_worksheet[f"{col}{row}"], 'FF6DCD57')
+            if row != 45:  # 5 days sum
+                cells_above = [new_worksheet[f"{col}{row - i}"] for i in range(1, 6)]
+            else:  # the last sum contains 6 days (Day 26 to Day 31 of the month)
+                cells_above = [new_worksheet[f"{col}{row - i}"] for i in range(1, 7)]
+            if all(is_highlighted(cell, 'FF6DCD57') for cell in cells_above) and not total_highlighted:
+                sum_value = sum(float(cell.value) for cell in cells_above)
+                sum_cell = new_worksheet[f"{col}{row}"]
+                sum_cell.value = round(sum_value, 1)
+                highlight_change('FF6DCD57', sum_cell, new_version_of_file)
+            elif sum(is_highlighted(cell, 'FF6DCD57') for cell in cells_above) == len(cells_above) - 1:
+                non_highlighted_cell = next(cell for cell in cells_above if not is_highlighted(cell, 'FF6DCD57'))
+                if total_highlighted:
+                    total_value = float(new_worksheet[f"{col}{row}"].value)
+                    non_highlighted_cell.value = round(total_value - sum(float(cell.value) for cell in cells_above if cell != non_highlighted_cell), 1)
+                    highlight_change('FF6DCD57', non_highlighted_cell, new_version_of_file)
 
-    # for row in average_rows:
-    #     for col in columns:
-    #         if row is not 45: # 5 days average
-    #             cells_above = [new_worksheet[f"{col}{row - i}"] for i in range(2, 7)]
-    #         if row is 45: # the last average contains 6 days (Day 26 to Day 31 of the month)
-    #             cells_above = [new_worksheet[f"{col}{row - i}"] for i in range(2, 8)]
-    #         if all(is_highlighted(cell, 'FF6DCD57') for cell in cells_above):
-    #             average_value = mean(float(cell.value) for cell in cells_above)
-    #             average_cell = new_worksheet[f"{col}{row}"]
-    #             average_cell.value = round(average_value, 1)
-    #             highlight_change('FF6DCD57', average_cell, new_version_of_file)
 
-    # # Save the workbook after all changes
-    # new_workbook.save(new_version_of_file)
-    
+    # Save the workbook after all changes
+    new_workbook.save(new_version_of_file)
 
-    # Insert a new row at the top for headers
-    new_worksheet.insert_rows(1, amount = 1)
-    # Define your headers (adjust as needed)
-    headers = ["No de la pentade", "Date", "Bellani (gr. Cal/cm2) 6-6h", "Températures extrêmes", "", "", "", "", "Evaportation en cm3 6 - 6h", "", "Pluies en mm. 6-6h", "Température et Humidité de l'air à 6 heures", "", "", "", "", "Température et Humidité de l'air à 15 heures",  "", "", "", "", "Température et Humidité de l'air à 18 heures",  "", "", "", "", "Date"]
-    # Add the headers to the first row
-    for col_num, header in enumerate(headers, start=1):
-        new_worksheet.cell(row=1, column=col_num, value=header)
 
-        if header == "No de la pentade" or header == "Date" or header == "Bellani (gr. Cal/cm2) 6-6h" or header == "Pluies en mm. 6-6h":
-            cell.alignment = Alignment(textRotation=90)
-    
-    # Merge cells for multi-column headers
-    new_worksheet.merge_cells(start_row=1, start_column=1, end_row=3, end_column=1) #No de la pentade
-    new_worksheet.merge_cells(start_row=1, start_column=2, end_row=3, end_column=2) #Date
-    new_worksheet.merge_cells(start_row=1, start_column=3, end_row=3, end_column=3) #Bellani
-    new_worksheet.merge_cells(start_row=1, start_column=4, end_row=1, end_column=8) #Températures extrêmes
-    new_worksheet.merge_cells(start_row=1, start_column=9, end_row=1, end_column=10) #Evaportation
-    new_worksheet.merge_cells(start_row=1, start_column=11, end_row=3, end_column=11) #Pluies
-    new_worksheet.merge_cells(start_row=1, start_column=12, end_row=1, end_column=16) #Température et Humidité de l'air à 6 heures
-    new_worksheet.merge_cells(start_row=1, start_column=17, end_row=1, end_column=21) #Température et Humidité de l'air à 15 heures
-    new_worksheet.merge_cells(start_row=1, start_column=22, end_row=1, end_column=26) #Température et Humidité de l'air à 18 heures
-    new_worksheet.merge_cells(start_row=1, start_column=27, end_row=3, end_column=27) #Date
-    # subheaders
-    new_worksheet.merge_cells(start_row=2, start_column=4, end_row=2, end_column=7) #Abri
-    new_worksheet.merge_cells(start_row=2, start_column=9, end_row=2, end_column=10) #Piche
-    new_worksheet.merge_cells(start_row=2, start_column=12, end_row=2, end_column=16) #(Psychromètre a aspiration)
-    new_worksheet.merge_cells(start_row=2, start_column=17, end_row=2, end_column=21) #(Psychromètre a aspiration)
-    new_worksheet.merge_cells(start_row=2, start_column=22, end_row=2, end_column=26) #(Psychromètre a aspiration)
+    # New logic to recalculate 5/6 day averages if all five/six cells above are highlighted green
+    average_rows = [10, 17, 24, 31, 38, 46]
+    columns = ['D', 'E', 'F']   # Max, Min and Ave Temperatures
 
-    
-    # Set up border styles for excel output
-    thin_border = Border(
-        left=Side(style='thin'),
-        right=Side(style='thin'),
-        top=Side(style='thin'),
-        bottom=Side(style='thin'))
-
-    # Loop through cells to apply borders
-    for row in new_worksheet.iter_rows(min_row=1, max_row=new_worksheet.max_row, min_col=1, max_col=new_worksheet.max_column):
-        for cell in row:
-            cell.border = thin_border
+    for row in average_rows:
+        for col in columns:
+            # Check if the total is already highlighted
+            average_highlighted = is_highlighted(new_worksheet[f"{col}{row}"], 'FF6DCD57')
+            if row is not 46: # 5 days average
+                cells_above = [new_worksheet[f"{col}{row - i}"] for i in range(2, 7)]
+            if row is 46: # the last average contains 6 days (Day 26 to Day 31 of the month)
+                cells_above = [new_worksheet[f"{col}{row - i}"] for i in range(2, 8)]
+            if all(is_highlighted(cell, 'FF6DCD57') for cell in cells_above) and not average_highlighted:
+                average_value = mean(float(cell.value) for cell in cells_above)
+                average_cell = new_worksheet[f"{col}{row}"]
+                average_cell.value = round(average_value, 1)
+                highlight_change('FF6DCD57', average_cell, new_version_of_file)
+            elif sum(is_highlighted(cell, 'FF6DCD57') for cell in cells_above) == len(cells_above) - 1:
+                non_highlighted_cell = next(cell for cell in cells_above if not is_highlighted(cell, 'FF6DCD57'))
+                if average_highlighted:
+                    total_value = float(new_worksheet[f"{col}{row}"].value) * len(cells_above)
+                    non_highlighted_cell.value = round(total_value - sum(float(cell.value) for cell in cells_above if cell != non_highlighted_cell), 1)
+                    highlight_change('FF6DCD57', non_highlighted_cell, new_version_of_file)
+                                
+    # Save the workbook after all changes
     new_workbook.save(new_version_of_file)
     
-    # Iterate through all cells and set the alignment
-    for row in new_worksheet.iter_rows():
-        for cell in row:
-            cell.alignment = Alignment(horizontal='center', vertical='center')
+
+
+    # # Insert a new row at the top for headers
+    # new_worksheet.insert_rows(1, amount = 1)
+    # # Define your headers (adjust as needed)
+    # headers = ["No de la pentade", "Date", "Bellani (gr. Cal/cm2) 6-6h", "Températures extrêmes", "", "", "", "", "Evaportation en cm3 6 - 6h", "", "Pluies en mm. 6-6h", "Température et Humidité de l'air à 6 heures", "", "", "", "", "Température et Humidité de l'air à 15 heures",  "", "", "", "", "Température et Humidité de l'air à 18 heures",  "", "", "", "", "Date"]
+    # # Add the headers to the first row
+    # for col_num, header in enumerate(headers, start=1):
+    #     new_worksheet.cell(row=1, column=col_num, value=header)
+
+    #     if header == "No de la pentade" or header == "Date" or header == "Bellani (gr. Cal/cm2) 6-6h" or header == "Pluies en mm. 6-6h":
+    #         cell.alignment = Alignment(textRotation=90)
+    
+    # # Merge cells for multi-column headers
+    # new_worksheet.merge_cells(start_row=1, start_column=1, end_row=3, end_column=1) #No de la pentade
+    # new_worksheet.merge_cells(start_row=1, start_column=2, end_row=3, end_column=2) #Date
+    # new_worksheet.merge_cells(start_row=1, start_column=3, end_row=3, end_column=3) #Bellani
+    # new_worksheet.merge_cells(start_row=1, start_column=4, end_row=1, end_column=8) #Températures extrêmes
+    # new_worksheet.merge_cells(start_row=1, start_column=9, end_row=1, end_column=10) #Evaportation
+    # new_worksheet.merge_cells(start_row=1, start_column=11, end_row=3, end_column=11) #Pluies
+    # new_worksheet.merge_cells(start_row=1, start_column=12, end_row=1, end_column=16) #Température et Humidité de l'air à 6 heures
+    # new_worksheet.merge_cells(start_row=1, start_column=17, end_row=1, end_column=21) #Température et Humidité de l'air à 15 heures
+    # new_worksheet.merge_cells(start_row=1, start_column=22, end_row=1, end_column=26) #Température et Humidité de l'air à 18 heures
+    # new_worksheet.merge_cells(start_row=1, start_column=27, end_row=3, end_column=27) #Date
+    # # subheaders
+    # new_worksheet.merge_cells(start_row=2, start_column=4, end_row=2, end_column=7) #Abri
+    # new_worksheet.merge_cells(start_row=2, start_column=9, end_row=2, end_column=10) #Piche
+    # new_worksheet.merge_cells(start_row=2, start_column=12, end_row=2, end_column=16) #(Psychromètre a aspiration)
+    # new_worksheet.merge_cells(start_row=2, start_column=17, end_row=2, end_column=21) #(Psychromètre a aspiration)
+    # new_worksheet.merge_cells(start_row=2, start_column=22, end_row=2, end_column=26) #(Psychromètre a aspiration)
+
+    
+    # # Set up border styles for excel output
+    # thin_border = Border(
+    #     left=Side(style='thin'),
+    #     right=Side(style='thin'),
+    #     top=Side(style='thin'),
+    #     bottom=Side(style='thin'))
+
+    # # Loop through cells to apply borders
+    # for row in new_worksheet.iter_rows(min_row=1, max_row=new_worksheet.max_row, min_col=1, max_col=new_worksheet.max_column):
+    #     for cell in row:
+    #         cell.border = thin_border
+    # new_workbook.save(new_version_of_file)
+    
+    # # Iterate through all cells and set the alignment
+    # for row in new_worksheet.iter_rows():
+    #     for cell in row:
+    #         cell.alignment = Alignment(horizontal='center', vertical='center')
 
     new_workbook.save(new_version_of_file)
 
@@ -1283,7 +1492,7 @@ def post_processing(pre_processed_excel_file, postprocessed_data_dir, month_file
 
 
 ## Compare the 'correct' transcribed and post corrected data with manually entered data
-def compare_workbooks(file1, file2, uncertainty_margin=0.5):
+def compare_workbooks(file1, file2, uncertainty_margin=0.2):
     # Load both workbooks
     wb1 = openpyxl.load_workbook(file1)
     ws1 = wb1.active
