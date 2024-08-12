@@ -55,6 +55,30 @@ def is_highlighted_green(cell, color):
 
 # Create a function to plot with dashed lines for missing data
 def plot_with_missing(ax, series, label, color):
+    '''
+    Plots a time series with a solid line, highlighting segments with missing data using dashed lines.
+
+    This function plots a time series on the given Axes object (`ax`). The main data is represented by a solid line. 
+    Where there are missing values (`NaN`) in the series, dashed lines are plotted to indicate the gaps.
+
+    Parameters
+    --------------
+    ax: matplotlib.axes.Axes
+        The matplotlib Axes object where the series will be plotted.
+    series: pandas.Series
+        The time series data to plot. The index should represent the x-axis (e.g., dates), and the values represent the y-axis data.
+    label: str
+        The label for the series, used for the legend.
+    color: str
+        The color of the plot line.
+
+    Returns
+    --------------
+    None
+        The function plots the series directly onto the provided Axes object and does not return any value.
+    '''
+
+
     # Plot the main line
     ax.plot(series.index, series, label=label, color=color, linestyle='-')
     

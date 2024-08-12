@@ -4,16 +4,22 @@ import cv2
 
 def image_preprocessing(image_path):
     '''
-    # Simple image pre-processing. Reads the original colored image and converts it to grayscale
-    
+    Performs basic image pre-processing by converting a colored image to grayscale.
+
+    This function reads an image from the specified path and converts it from its original colored format to grayscale. 
+    This is a common preprocessing step in image analysis and computer vision tasks, where color information may not be necessary.
+
     Parameters
     --------------
-    image_path : path/directory of original image
+    image_path : str
+        The path to the original colored image file.
 
     Returns
     --------------
-    image: pre-processed image
-
+    image: numpy.ndarray
+        The pre-processed grayscale image.
+    original_image: numpy.ndarray
+        The original colored image as read from the file.
     '''
 
     ## Read Image from the given image path
