@@ -16,7 +16,7 @@ Below is the structure for this project.
 ├── LICENSE
 |
 ├── data
-│   ├── 10_sample_different_images       <- Sample images of climate data sheets from the INERA
+│   ├── 10_sample_datasheet_images       <- Sample images of climate data sheets from the INERA
 |                                           Yangambi archives, DRC.
 |
 ├── models                               <- Trained and serialized models, model predictions, or model summaries. 
