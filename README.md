@@ -38,7 +38,15 @@ Below is the structure for this project.
 │   │
 │   ├── transcription_model.py           <- Script to detect the text within the detected cells using
 |   |                                       an Optical Character Recognition (OCR) or Handwritten Text
-|   |                                       Recognition (HTR) model of your choice.               
+|   |                                       Recognition (HTR) model of your choice.
+|   │
+│   ├── selection_and_conversion.py      <- Script to select the confirmed data (from the quality control)
+|   |                                       and convert it the excel file to a format ready to be converted
+|   |                                       to the Station Exchange Format
+│   ├── validation.py                    <- Script to generates a visual comparison of daily maximum, minimum,
+|   |                                       and average temperatures between manually transcribed data and
+|   |                                       post-processed data for a specific station.select the confirmed data
+|   |                                       (from the quality control)                                                                              
 │   │
 │   └── output                           <- Folder with outputs from the transcription
 │
