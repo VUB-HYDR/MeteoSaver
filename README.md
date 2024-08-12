@@ -1,4 +1,4 @@
-# Data Rescue Congo DRC
+# MeteoSaver v1.0
 
 Here we undertake data transcription of millions of daily precipitation and temperature records 
 collected within the Congo Basin.
