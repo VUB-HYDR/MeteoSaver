@@ -139,7 +139,7 @@ Note that you can save multiple sets of guides for multiple templates in the sam
 
 ## Post processing - Quality Assessement and Quality Control (QA/QC) checks:
 
-![](https://github.com/VUB-HYDR/MeteoSaver/blob/3e8e244fbea36befa2a9f0ce361c4a09c751c5a6/docs/Post_processing_flowchart.pdf)
+![](https://github.com/VUB-HYDR/MeteoSaver/blob/3e8e244fbea36befa2a9f0ce361c4a09c751c5a6/docs/Post_processing_flowchart.png)
 
 
 ## Authors
