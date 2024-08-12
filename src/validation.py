@@ -243,6 +243,26 @@ def select_and_convert_manually_transcribed_data(input_folder_path):
     return merged_df
 
 def compare_dataframes(df1, df2, uncertainty_margin=0.2):
+    """
+    Compare temperature data between two dataframes and calculate the accuracy percentage.
+
+    This function compares temperature values from two dataframes, typically one containing manually transcribed data and the other containing post-processed data. 
+    It calculates how closely the values match within a specified uncertainty margin, providing an accuracy percentage as a result.
+
+    Parameters
+    --------------
+    df1: pandas.DataFrame
+        The first dataframe, usually containing manually transcribed data. It must include columns for 'Year', 'Month', 'Day', and temperature values ('Max_Temperature', 'Min_Temperature', 'Avg_Temperature').
+    df2: pandas.DataFrame
+        The second dataframe, typically containing post-processed data. It should have the same structure and columns as df1.
+    uncertainty_margin: float, optional
+        The allowable difference between values in the two dataframes for them to be considered a match. The default is 0.2.
+
+    Returns
+    --------------
+    float
+        The accuracy percentage, indicating the proportion of cells in the two dataframes that match within the specified uncertainty margin.
+    """
     
     total_highlighted_cells = 0
     accurate_matches = 0
@@ -273,8 +293,36 @@ def compare_dataframes(df1, df2, uncertainty_margin=0.2):
 
     return accuracy_percentage
 
+
+
 def plot_comparison(manual_df, post_processed_df, output_folder_path, station, accuracy_percentage):
-    """Plot the comparison of manually entered data with post-processed data."""
+    """
+    Plot a comparison between manually transcribed data and post-processed data, including confidence intervals.
+
+    This function generates a visual comparison of daily maximum, minimum, and average temperatures between manually transcribed data and post-processed data for a specific station. 
+    The comparison includes plotting the post-processed data with confidence intervals and overlaying the manually transcribed data for validation purposes.
+
+    Parameters
+    --------------
+    manual_df: pandas.DataFrame
+        The dataframe containing the manually transcribed temperature data. It should include columns for 'Year', 'Month', 'Day', and the respective temperature values.
+    post_processed_df: pandas.DataFrame
+        The dataframe containing the post-processed temperature data. It should include columns for 'Year', 'Month', 'Day', and the respective temperature values.
+    output_folder_path: str
+        The directory path where the generated plot will be saved.
+    station: str
+        The identifier or name of the station, used for labeling the plot and the output filename.
+    accuracy_percentage: float
+        The calculated accuracy percentage of the manually transcribed data compared to the post-processed data, displayed on the plot.
+
+    Returns
+    --------------
+    None
+        The function generates and saves a plot comparing the two datasets, displaying the accuracy percentage, and does not return any value.
+
+    """
+
+
     # Ensure Date column exists in both dataframes
     manual_df['Date'] = pd.to_datetime(manual_df[['Year', 'Month', 'Day']])
     post_processed_df['Date'] = pd.to_datetime(post_processed_df[['Year', 'Month', 'Day']])
@@ -331,8 +379,43 @@ def plot_comparison(manual_df, post_processed_df, output_folder_path, station, a
     plt.savefig(plot_filename, format='jpg')
     plt.show()
 
+
+
+
 def validate(manually_transcribed_data_dir, postprocessed_data_dir_station, output_folder_path, station):
-    """Main function to process and plot data."""
+    """
+    Main function to validate and compare manually transcribed data with post-processed data, and generate corresponding plots.
+
+    This function compares manually transcribed temperature data with post-processed data files to ensure accuracy. 
+    It identifies matching files between the two datasets, processes them, and calculates the accuracy percentage. 
+    Finally, it generates comparison plots for each file pair.
+
+    Parameters
+    --------------
+    manually_transcribed_data_dir: str
+        The directory path containing manually transcribed data files. These files should be named with the suffix '_manually_entered_temperatures'.
+    postprocessed_data_dir_station: str
+        The directory path containing post-processed data files. These files should be named with the suffix '_post_processed'.
+    output_folder_path: str
+        The directory path where the output plots will be saved.
+    station: str
+        The station identifier or name used for labeling the output files.
+
+    Returns
+    --------------
+    None
+        The function does not return any value. Instead, it processes the data, compares the files, and plots the two files timeseries
+
+    Processing Steps
+    --------------
+    1. **File Matching:** The function identifies pairs of files from the manually transcribed and post-processed directories that correspond to each other based on their base names.
+    2. **Data Loading:** The corresponding data from the identified file pairs are loaded into dataframes.
+    3. **Data Conversion:** Temperature columns in the post-processed data are converted to numeric types, with non-convertible values coerced to NaN.
+    4. **Accuracy Calculation:** The manually transcribed data is compared with the post-processed data to calculate an accuracy percentage.
+    5. **Plot Generation:** Comparison plots are generated, providing a visual assessment of the data validation.
+    """
+
+
     manually_transcribed_files = os.listdir(manually_transcribed_data_dir)
     postprocessed_files = os.listdir(postprocessed_data_dir_station)
     manual_files = [f for f in manually_transcribed_files if 'manually_entered' in f]
