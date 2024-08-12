@@ -25,7 +25,7 @@ Below is the structure for this project.
 |                                           as well examples of outputs from the jupyter notebooks
 |                                           such as Ms Excel with OCR results and clipped images.
 │
-├── src                                  <- Trancribing code/scripts for use in this project.
+├── src                                  <- Transcribing code/scripts used in this project.
 │   ├── main.py                          <- Script to run all the different modules (scripts) below
 |   |                                       i.e. in order (1) image preprocessing module, (2) table
 |   |                                       detection model, and (3) transcription model
