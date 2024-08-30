@@ -57,30 +57,6 @@ def is_highlighted_green(cell, color):
         return fill.rgb == color
     return False
 
-# Create a function to plot with dashed lines for missing data
-def plot_with_missing(ax, series, label, color):
-    # Plot the main line
-    ax.plot(series.index, series, label=label, color=color, linestyle='-')
-    
-    # Create a mask for missing values
-    is_nan = series.isna()
-    
-    # Find start and end points of missing data segments
-    missing_segments = []
-    start = None
-    for i in range(len(is_nan)):
-        if is_nan.iloc[i] and start is None:
-            start = i
-        elif not is_nan.iloc[i] and start is not None:
-            missing_segments.append((start, i))
-            start = None
-    if start is not None:
-        missing_segments.append((start, len(is_nan)))
-    
-    # Plot dashed lines for missing data
-    for start, end in missing_segments:
-        if start > 0 and end < len(series):
-            ax.plot(series.index[start-1:end+1], series[start-1:end+1], linestyle='--', color=color)
 
 
 def select_and_convert_postprocessed_data(input_folder_path):
@@ -89,8 +65,6 @@ def select_and_convert_postprocessed_data(input_folder_path):
     Parameters
     --------------   
     input_folder_path: path of postprocessed files
-    output_folder_path: output path for the selected data
-    station: station number
 
     Returns
     -------------- 
@@ -172,8 +146,6 @@ def select_and_convert_manually_transcribed_data(input_folder_path):
     Parameters
     --------------   
     input_folder_path: path of postprocessed files
-    output_folder_path: output path for the selected data
-    station: station number
 
     Returns
     -------------- 
