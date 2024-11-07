@@ -1,0 +1,43 @@
+SEF	1.0.0
+ID	905
+Name	Mutsora
+Lat	0.3167
+Lon	29.7333
+Alt	1330.0
+Source	Institut National pour l’Etude et la Recherche Agronomiques
+Link	
+Vbl	Ta
+Stat	point
+Units	C
+Meta	Observer=  | QC software = MeteoSaver v1.0 | Note = Transcription software: MeteoSaver v1.0 (https://github.com/VUB-HYDR/MeteoSaver)
+Year	Month	Day	Hour	Minute	Period	Value	Meta
+1973	11	1	0	0	0	22.1	
+1973	11	2	0	0	0	22.5	
+1973	11	3	0	0	0	NaN	
+1973	11	4	0	0	0	NaN	
+1973	11	5	0	0	0	22.7	
+1973	11	6	0	0	0	NaN	
+1973	11	7	0	0	0	NaN	
+1973	11	8	0	0	0	22.4	
+1973	11	9	0	0	0	NaN	
+1973	11	10	0	0	0	NaN	
+1973	11	11	0	0	0	NaN	
+1973	11	12	0	0	0	NaN	
+1973	11	13	0	0	0	NaN	
+1973	11	14	0	0	0	21.8	
+1973	11	15	0	0	0	NaN	
+1973	11	16	0	0	0	NaN	
+1973	11	17	0	0	0	NaN	
+1973	11	18	0	0	0	20.3	
+1973	11	19	0	0	0	21.8	
+1973	11	20	0	0	0	NaN	
+1973	11	21	0	0	0	26.7	
+1973	11	22	0	0	0	21.3	
+1973	11	23	0	0	0	20.9	
+1973	11	24	0	0	0	20.7	
+1973	11	25	0	0	0	22.1	
+1973	11	26	0	0	0	20.7	
+1973	11	27	0	0	0	20.7	
+1973	11	28	0	0	0	NaN	
+1973	11	29	0	0	0	22.3	
+1973	11	30	0	0	0	NaN	

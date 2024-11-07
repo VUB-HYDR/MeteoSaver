@@ -1,0 +1,44 @@
+SEF	1.0.0
+ID	501
+Name	Kisanga-Plateau
+Lat	-11.7333
+Lon	27.4167
+Alt	1187.0
+Source	Institut National pour l’Etude et la Recherche Agronomiques
+Link	
+Vbl	Tn
+Stat	point
+Units	C
+Meta	Observer=  | QC software = MeteoSaver v1.0 | Note = Transcription software: MeteoSaver v1.0 (https://github.com/VUB-HYDR/MeteoSaver)
+Year	Month	Day	Hour	Minute	Period	Value	Meta
+1972	10	1	0	0	0	9.7	
+1972	10	2	0	0	0	10.8	
+1972	10	3	0	0	0	NaN	
+1972	10	4	0	0	0	10.0	
+1972	10	5	0	0	0	11.0	
+1972	10	6	0	0	0	17.2	
+1972	10	7	0	0	0	11.8	
+1972	10	8	0	0	0	15.5	
+1972	10	9	0	0	0	17.4	
+1972	10	10	0	0	0	15.0	
+1972	10	11	0	0	0	NaN	
+1972	10	12	0	0	0	12.4	
+1972	10	13	0	0	0	NaN	
+1972	10	14	0	0	0	NaN	
+1972	10	15	0	0	0	NaN	
+1972	10	16	0	0	0	14.9	
+1972	10	17	0	0	0	NaN	
+1972	10	18	0	0	0	14.8	
+1972	10	19	0	0	0	13.8	
+1972	10	20	0	0	0	13.4	
+1972	10	21	0	0	0	NaN	
+1972	10	22	0	0	0	NaN	
+1972	10	23	0	0	0	NaN	
+1972	10	24	0	0	0	NaN	
+1972	10	25	0	0	0	17.0	
+1972	10	26	0	0	0	13.8	
+1972	10	27	0	0	0	14.2	
+1972	10	28	0	0	0	14.7	
+1972	10	29	0	0	0	16.3	
+1972	10	30	0	0	0	15.4	
+1972	10	31	0	0	0	16.3	
