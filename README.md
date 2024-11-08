@@ -2,7 +2,7 @@
 
 Here we present MeteoSaver v1.0, a machine-learning based software for the transcription of historical weather data.
 
-## Note: This README is still under development. However the code/scripts are up-to-date
+### Note: This README is still under development. However the code/scripts are up-to-date
 
 ![](docs/data_rescue_flowchart.png)
 
@@ -116,11 +116,6 @@ To spin up a docker image using:
 ```
 docker run -it -v /local_data:/docker_data_dir transcribing_drc_data_environment
 ```
-
-## Post processing - Quality Assessement and Quality Control (QA/QC) checks:
-
-![]([https://github.com/VUB-HYDR/MeteoSaver/blob/b92a4cd9d6e1c41f818354e7abc7de434d624be9/docs/Post_processing_flowchart.png](https://github.com/VUB-HYDR/MeteoSaver/blob/f6393c7db64d7c14358269cea2ab8f58268b245f/docs/Flow%20chart%20showing%20the%20quality%20assessment%20and%20quality%20control%20checks%20for%20the%20transcribed%20values.pdf))
-
 
 ## Authors
 Derrick Muheki
