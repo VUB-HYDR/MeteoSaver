@@ -24,59 +24,56 @@ Below is the structure for this project.
 │
 ├── docs                                                    <- Flow charts and keys for MeteoSaver included in Muheki et al. 2025.
 |
-├── results                                                 <- All results obtained from exceution of MeteoSaver v1.0 on the sample ten datasheets |                                                              included in this repository as a Minimal Working Example
-|                                                             
-│   ├──01_pre_QA_QC_transcribed_hydroclimate_data            <- Original automatic transcription using MeteoSaver before QA/QC checks
+├── results                                                 <- All results obtained from exceution of MeteoSaver v1.0 on the sample ten datasheets
+|                                                              included in this repository as a Minimal Working Example                            |                                                             
+│   ├──01_pre_QA_QC_transcribed_hydroclimate_data           <- Original automatic transcription using MeteoSaver before QA/QC checks
 |   |                                       
-│   ├── 02_post_QA_QC_transcribed_hydroclimate_data          <- Transcription after using MeteoSaver QA/QC checks
+│   ├── 02_post_QA_QC_transcribed_hydroclimate_data         <- Transcription after using MeteoSaver QA/QC checks
 |   |                                      
-│   ├── 03_validation_transcibed_data                        <- Validation of the transcription using MeteoSaver (in comparison to manual |      |transcription
+│   ├── 03_validation_transcibed_data                       <- Validation of the transcription using MeteoSaver (in comparison to manual transcription)
 │   │
-│   ├── transcription_model.py           <- Script to detect the text within the detected cells using
-|   |                                       an Optical Character Recognition (OCR) or Handwritten Text
-|   |                                       Recognition (HTR) model of your choice.
+│   ├── 04_final_refined_daily_hydroclimate_data            <- Final refined (formatted) trancribed data, in .xlsx and .tsv (SEF) ready for upload
 |   │
-│   ├── selection_and_conversion.py      <- Script to select the confirmed data (from the quality control)
-|   |                                       and convert it the excel file to a format ready to be converted
-|   |                                       to the Station Exchange Format
-│   ├── validation.py                    <- Script to generates a visual comparison of daily maximum, minimum,
-|   |                                       and average temperatures between manually transcribed data and
-|   |                                       post-processed data for a specific station.select the confirmed data
-|   |                                       (from the quality control)
-
-├── src                                  <- Transcribing code/scripts used in this project.
-│   ├── main.py                          <- Script to run all the different modules (scripts) below
-|   |                                       i.e. in order (1) image preprocessing module, (2) table
-|   |                                       detection model, and (3) transcription model
+│   ├── 05_transient_transcription_output                   <- Transient outputs (during processing)
+|
+│   ├── 06_manually_transcribed_hydroclimate_data           <- Manually transcribed data (For validation purposes)
+|
+|
+|                                       
+├── src                                                     <- Modules (2-6): Transcribing code/scripts for MeteoSaver v1.0
+│   ├── main.py                                             <- Main script to run all the modules 1-6 of MetoSaver (scripts)
+|   |                                                          i.e. in order (i) configuration, (iI) image-preprocessing module, (iii) table and cell
+|   |                                                          detection model, (iv) transcription, (v) quality assessment and control,
+|   |                                                          and (vi) data formatting and upload
 │   │
-│   ├── image_preprocessing.py           <- Script to carry out preprocessing of the original scans
-|   |                                       of climate data records
+│   ├── image_preprocessing_module.py                       <- Script to carry out image preprocessing of the original scans
+|   |                                                          of climate data records
 │   │
-│   ├── table_detection_model.py         <- Script to detect the table cells from the already
-|   |                                       pre-processed images
+│   ├── table_and_cell_detection_model.py                   <- Script to detect the table and cells from the already
+|   |                                                          pre-processed images
 │   │
-│   ├── transcription_model.py           <- Script to detect the text within the detected cells using
-|   |                                       an Optical Character Recognition (OCR) or Handwritten Text
-|   |                                       Recognition (HTR) model of your choice.
+│   ├── transcription.py                                    <- Script to detect the text within the detected cells using
+|   |                                                          an Optical Character Recognition (OCR) or Handwritten Text
+|   |                                                          Recognition (HTR) model of your choice.
 |   │
-│   ├── selection_and_conversion.py      <- Script to select the confirmed data (from the quality control)
-|   |                                       and convert it the excel file to a format ready to be converted
-|   |                                       to the Station Exchange Format
-│   ├── validation.py                    <- Script to generates a visual comparison of daily maximum, minimum,
-|   |                                       and average temperatures between manually transcribed data and
-|   |                                       post-processed data for a specific station.select the confirmed data
-|   |                                       (from the quality control)                                                                              
-│   │
-│   └── output                           <- Folder with outputs from the transcription
+│   ├── quality_assessment_and_quality_control.py           <- Script to perform QA/QC checks on the original automatically transcribed data
+|   |                                       
+│   ├── validation.py                                       <- Script to generates a visual comparison of daily maximum, minimum,
+|   |                                                          and average temperatures between manually transcribed data and
+|   |                                                          QA/QC checked transcribed data for a specific station
+│   └── data_formatting_and_upload.py                       <- Script to select the confirmed data (from the QA/QC) and convert it both an excel file 
+|                                                              and to the Station Exchange Format, as well plot timeseries per station
+|   
 │
-│
-├── environment.yml                      <- The requirements file for reproducing the analysis environment
-|                                           Generated with `conda env export > environment.yml`
-├── setup.py                             <- Make this project pip installable with `pip install -e`
+├── Dockerfile                                              <- Docker install routine for a virtual environment
 |
-├── Dockerfile                           <- Docker install routine for a virtual environment
+├──LICENSE                                                  <- Licence
 |
-└── LICENSE 
+├── configuration.ini                                       <- Module 1: Configuration. User-defined settings to ensure smooth running of MeteoSaver
+|
+├── environment.yml                                         <- The requirements file for reproducing the analysis environment
+|                                                              Generated with `conda env export > environment.yml`
+└── setup.py                                               <- Make this project pip installable with `pip install -e` 
 
 ```
 
