@@ -1,7 +1,8 @@
 # MeteoSaver v1.0
 
-Here we undertake data transcription of millions of daily precipitation and temperature records 
-collected within the Congo Basin.
+Here we present MeteoSaver v1.0, a machine-learning based software for the transcription of historical weather data.
+
+## Note: This README is still under development. However the code/scripts are up-to-date
 
 ![](docs/data_rescue_flowchart.png)
 
@@ -11,20 +12,38 @@ collected within the Congo Basin.
 Below is the structure for this project.
 
 ```
-├── README.md                            <- This includes general information on the project
-|                                           and introduction of project structure and modules
-├── LICENSE
+├── README.md                                               <- This includes general information on the project
+|                                                              and introduction of project structure and modules
 |
+├── OCR_HTR_models                                          <- Trained and serialized models, model predictions, or model summaries.
+|                                                         
 ├── data
-│   ├── 10_sample_datasheet_images       <- Sample images of climate data sheets from the INERA
-|                                           Yangambi archives, DRC.
-|
-├── models                               <- Trained and serialized models, model predictions, or model summaries. 
-|
-├── notebook                             <- Jupyter notebook for exploration of the code only,
-|                                           as well examples of outputs from the jupyter notebooks
-|                                           such as Ms Excel with OCR results and clipped images.
+│   ├── 00_post1960_DRC_hydroclimate_datasheet_images       <- Sample images of climate data sheets from the INERA
+|                                                              Yangambi archives, DRC, arranged in folders (representing station numbers)
+|   ├── 01_metadata_INERA_stations                          <- Metadata for the INERA meteorological stations
 │
+├── docs                                                    <- Flow charts and keys for MeteoSaver included in Muheki et al. 2025.
+|
+├── results                                                 <- All results obtained from exceution of MeteoSaver v1.0 on the sample ten datasheets |                                                              included in this repository as a Minimal Working Example
+|                                                             
+│   ├──01_pre_QA_QC_transcribed_hydroclimate_data            <- Original automatic transcription using MeteoSaver before QA/QC checks
+|   |                                       
+│   ├── 02_post_QA_QC_transcribed_hydroclimate_data          <- Transcription after using MeteoSaver QA/QC checks
+|   |                                      
+│   ├── 03_validation_transcibed_data                        <- Validation of the transcription using MeteoSaver (in comparison to manual |      |transcription
+│   │
+│   ├── transcription_model.py           <- Script to detect the text within the detected cells using
+|   |                                       an Optical Character Recognition (OCR) or Handwritten Text
+|   |                                       Recognition (HTR) model of your choice.
+|   │
+│   ├── selection_and_conversion.py      <- Script to select the confirmed data (from the quality control)
+|   |                                       and convert it the excel file to a format ready to be converted
+|   |                                       to the Station Exchange Format
+│   ├── validation.py                    <- Script to generates a visual comparison of daily maximum, minimum,
+|   |                                       and average temperatures between manually transcribed data and
+|   |                                       post-processed data for a specific station.select the confirmed data
+|   |                                       (from the quality control)
+
 ├── src                                  <- Transcribing code/scripts used in this project.
 │   ├── main.py                          <- Script to run all the different modules (scripts) below
 |   |                                       i.e. in order (1) image preprocessing module, (2) table
@@ -55,7 +74,9 @@ Below is the structure for this project.
 |                                           Generated with `conda env export > environment.yml`
 ├── setup.py                             <- Make this project pip installable with `pip install -e`
 |
-└── Dockerfile                           <- Docker install routine for a virtual environment
+├── Dockerfile                           <- Docker install routine for a virtual environment
+|
+└── LICENSE 
 
 ```
 
