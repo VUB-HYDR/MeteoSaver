@@ -25,7 +25,7 @@ Below is the structure for this project.
 ├── docs                                                    <- Flow charts and keys for MeteoSaver included in Muheki et al. 2025.
 |
 ├── results                                                 <- All results obtained from exceution of MeteoSaver v1.0 on the sample ten datasheets
-|                                                              included in this repository as a Minimal Working Example                            |                                                             
+|   |                                                          included in this repository as a Minimal Working Example                                                                                         
 │   ├──01_pre_QA_QC_transcribed_hydroclimate_data           <- Original automatic transcription using MeteoSaver before QA/QC checks
 |   |                                       
 │   ├── 02_post_QA_QC_transcribed_hydroclimate_data         <- Transcription after using MeteoSaver QA/QC checks
