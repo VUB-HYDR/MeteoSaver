@@ -709,11 +709,7 @@ def plot_comparison(manual_df, post_processed_df, output_folder_path, station, p
     ax.plot(merged_df['Date'], merged_df['Min_Temperature_post'], 'o', label='Min (Automatically transcribed)', color='blue')
     ax.plot(merged_df['Date'], merged_df['Avg_Temperature_post'], 'o', label='Avg (Automatically transcribed)', color='orange')
 
-    # # Plot manually transcribed data as as points only with 'o' markers
-    # ax.plot(merged_df['Date'], merged_df['Max_Temperature_manual'], '--', label='Max (Manually transcribed)', color='red')
-    # ax.plot(merged_df['Date'], merged_df['Min_Temperature_manual'], '--', label='Min (Manually transcribed)', color='blue')
-    # ax.plot(merged_df['Date'], merged_df['Avg_Temperature_manual'], '--', label='Avg (Manually transcribed)', color='orange')
-    
+
     # Fill uncertainty margins around post-QA/QC data
     ax.fill_between(merged_df['Date'], merged_df['Max_Temperature_manual'] - uncertainty_margin, 
                     merged_df['Max_Temperature_manual'] + uncertainty_margin, color='red', alpha=0.2)
@@ -723,9 +719,13 @@ def plot_comparison(manual_df, post_processed_df, output_folder_path, station, p
                     merged_df['Avg_Temperature_manual'] + uncertainty_margin, color='orange', alpha=0.2)
     
     # Set plot labels and title
-    ax.set_xlabel('Date')
-    ax.set_ylabel('Temperature (°C)')
+    ax.set_xlabel('Date', fontsize=17, labelpad=15)
+    ax.set_ylabel('Temperature (°C)', fontsize=17, labelpad=15)
     ax.set_title(f'Daily Max, Min, and Avg Temperatures at station {station}')
+
+    # Adjust tick label font size
+    ax.tick_params(axis='x', labelsize=17)  # Set font size for x-axis tick labels
+    ax.tick_params(axis='y', labelsize=17)  # Set font size for y-axis tick labels
 
     # Adjust the y-axis limit to ensure the legend is above the plotted lines
     ylim = ax.get_ylim()
@@ -736,43 +736,50 @@ def plot_comparison(manual_df, post_processed_df, output_folder_path, station, p
     # Format the date labels to show at intervals of 5 days
     # Locator for every 5 days
     ax.xaxis.set_major_locator(mdates.DayLocator(interval=5))
+    plt.xticks(rotation=45)  # Rotate x-axis tick labels by 45 degrees
 
-    # Plot manually transcribed data as points with 'o' markers
-    manual_handle = [
-    Line2D([0], [0], marker='o', color='red', label='Max (Automatically transcribed)', linestyle='None'),
-    Line2D([0], [0], marker='o', color='blue', label='Min (Automatically transcribed)', linestyle='None'),
-    Line2D([0], [0], marker='o', color='orange', label='Avg (Automatically transcribed)', linestyle='None')]
+    # Add accuracy percentage below the x-axis
+    plt.figtext(0.70, 0.92, f'Accuracy Percentage: {accuracy_percentage_and_mean_absolute_error[0]:.1f}%', ha='left', fontsize=15, bbox={"facecolor":"orange", "alpha":0.5, "pad":5})
+    plt.figtext(0.70, 0.87, f'Mean Absolute Error: {accuracy_percentage_and_mean_absolute_error[1]:.1f}', ha='left', fontsize=15, bbox={"facecolor":"orange", "alpha":0.5, "pad":5})
 
-    # Create custom legend entries for automatically transcribed data + uncertainty
+    # # LEGEND
+    # # Plot manually transcribed data as points with 'o' markers
+    # manual_handle = [
+    # Line2D([0], [0], marker='o', color='red', label='Max (Automatically transcribed)', linestyle='None'),
+    # Line2D([0], [0], marker='o', color='blue', label='Min (Automatically transcribed)', linestyle='None'),
+    # Line2D([0], [0], marker='o', color='orange', label='Avg (Automatically transcribed)', linestyle='None')]
+
+    # # Create custom legend entries for automatically transcribed data + uncertainty
     # custom_handle = [
-    # (Line2D([0], [0], linestyle='--', color='red', lw=2), Patch(facecolor='red', alpha=0.2)),
-    # (Line2D([0], [0], linestyle='--', color='blue', lw=2), Patch(facecolor='blue', alpha=0.2)),
-    # (Line2D([0], [0], linestyle='--', color='orange', lw=2), Patch(facecolor='orange', alpha=0.2))]
+    # ( Patch(facecolor='red', alpha=0.2)),
+    # (Patch(facecolor='blue', alpha=0.2)),
+    # (Patch(facecolor='orange', alpha=0.2))]
 
-    custom_handle = [
-    ( Patch(facecolor='red', alpha=0.2)),
-    (Patch(facecolor='blue', alpha=0.2)),
-    (Patch(facecolor='orange', alpha=0.2))]
+    # # Combine the manual transcribed and automatically transcribed legend handles
+    # all_handles =  manual_handle + custom_handle
 
-    # Combine the manual transcribed and automatically transcribed legend handles
-    all_handles =  manual_handle + custom_handle
+    # # Create custom labels
+    # labels = [
+    #     'Max (Automatically transcribed)', 'Min (Automatically transcribed)', 'Avg (Automatically transcribed)', 
+    #     'Max (Manually transcribed)', 'Min (Manually transcribed)', 'Avg (Manually transcribed)'
+    # ]
 
-    # Create custom labels
-    labels = [
-        'Max (Automatically transcribed)', 'Min (Automatically transcribed)', 'Avg (Automatically transcribed)', 'Max (Manually transcribed)', 'Min (Manually transcribed)', 'Avg (Manually transcribed)']
+    # # Set legend handles with custom lines for each temperature type
+    # ax.legend(handles=all_handles, labels=labels, fontsize='small', loc='upper right')
 
-    # Set legend handles with custom lines for each temperature type
-    ax.legend(handles=all_handles, labels=labels, fontsize='small', loc='upper right')
+    # Add the legend below the plot
+    # ax.legend(handles=all_handles, labels=labels, loc='upper center', bbox_to_anchor=(0.5, -0.40), ncol=2, fontsize=14)
         
     ax.grid(True)
 
-    # Add accuracy percentage below the x-axis
-    plt.figtext(0.40, 0.01, f'Accuracy Percentage: {accuracy_percentage_and_mean_absolute_error[0]:.1f}%', ha='center', fontsize=10, bbox={"facecolor":"orange", "alpha":0.5, "pad":5})
-    plt.figtext(0.60, 0.01, f'Mean Absolute Error: {accuracy_percentage_and_mean_absolute_error[1]:.1f}', ha='center', fontsize=10, bbox={"facecolor":"orange", "alpha":0.5, "pad":5})
+    # # Add accuracy percentage below the x-axis
+    # plt.figtext(0.40, 0.01, f'Accuracy Percentage: {accuracy_percentage_and_mean_absolute_error[0]:.1f}%', ha='center', fontsize=10, bbox={"facecolor":"orange", "alpha":0.5, "pad":5})
+    # plt.figtext(0.60, 0.01, f'Mean Absolute Error: {accuracy_percentage_and_mean_absolute_error[1]:.1f}', ha='center', fontsize=10, bbox={"facecolor":"orange", "alpha":0.5, "pad":5})
     
     # Remove the '.xlsx' extension from the post_file to clean the filename
     cleaned_post_file_name = os.path.splitext(post_file)[0]
 
+    plt.tight_layout()
     # Save the plot
     plot_filename = os.path.join(output_folder_path, f'temperature_comparison_plot_{cleaned_post_file_name}.jpg')
     plt.savefig(plot_filename, format='jpg')
