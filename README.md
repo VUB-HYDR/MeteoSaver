@@ -73,7 +73,10 @@ Below is the structure for this project.
 |
 ├── environment.yml                                         <- The requirements file for reproducing the analysis environment
 |                                                              Generated with `conda env export > environment.yml`
-└── setup.py                                               <- Make this project pip installable with `pip install -e` 
+|
+├── job_script.sh                                           <- Job script for HPC infrastructure users to run the software
+|
+└── setup.py                                                <- Make this project pip installable with `pip install -e` 
 
 ```
 
