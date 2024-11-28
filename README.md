@@ -117,7 +117,7 @@ docker run -it -v /local_data:/docker_data_dir transcribing_drc_data_environment
 
 ## Modules
 The figure below represents the modules in MeteoSaver v1.0
-![Schematic representation of the modules in MeteoSaver v1.0](https://raw.githubusercontent.com/VUB-HYDR/MeteoSaver/522d6213c9db5cf03e1ba9976ad4bb43d6534aec/docs/Schematic%20representation%20of%20the%20modules%20in%20MeteoSaver%20v1.0.png)
+![Schematic representation of the modules in MeteoSaver v1.0](https://github.com/VUB-HYDR/MeteoSaver/blob/8ff79a3c003f157138824f32c91d5e41aa34ac75/docs/Schematic%20representation%20of%20the%20modules%20in%20MeteoSaver%20v1.0.png)
 
 
 ## How to run MeteoSaver v1.0 
