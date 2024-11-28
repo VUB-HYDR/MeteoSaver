@@ -135,6 +135,8 @@ After inputting the configuration settings specific to your case study (see Tabl
 ### Minimal Working Example (MWE)
 You can run the entire script in this repository as a Minimal Working Example (MWE) without modifying any configuration settings. Simply set up the Python environment and execute the script using [main.py](https://github.com/VUB-HYDR/MeteoSaver/blob/7aeab0f526b44056c062407df7cfe467e20a67d8/src/main.py).
 
+
+### Configuration user-settings
 The figure below describes all the configuration user-settings.
 ![Configuration_user_settings](https://github.com/VUB-HYDR/MeteoSaver/blob/4ddd56d52b3dda19afc6227595eba0d6ca843c30/docs/Configuration%20user%20settings.png)
 
