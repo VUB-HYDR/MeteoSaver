@@ -117,8 +117,9 @@ docker run -it -v /local_data:/docker_data_dir transcribing_drc_data_environment
 
 ## Modules
 The figure below represents the modules in MeteoSaver v1.0
+<div align="center">
 ![Schematic representation of the modules in MeteoSaver v1.0](https://github.com/VUB-HYDR/MeteoSaver/blob/8ff79a3c003f157138824f32c91d5e41aa34ac75/docs/Schematic%20representation%20of%20the%20modules%20in%20MeteoSaver%20v1.0.png)
-
+</div>
 
 ## How to run MeteoSaver v1.0 
 1. After setting up the python environment using the [environment.yml](https://github.com/VUB-HYDR/MeteoSaver/blob/5b775a3047a38b86836bfdc24718ee2064756400/environment.yml) file available on this repository, input your user-sepcific settings in the configuration module
