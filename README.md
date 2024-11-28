@@ -122,7 +122,12 @@ The figure below represents the modules in MeteoSaver v1.0
 
 
 ## How to run MeteoSaver v1.0 
-1. After setting up the python environment using the [environment.yml](https://github.com/VUB-HYDR/MeteoSaver/blob/5b775a3047a38b86836bfdc24718ee2064756400/environment.yml) file available on this repository, input your user-sepcific settings in the configuration module
+After setting up the python environment using the [environment.yml](https://github.com/VUB-HYDR/MeteoSaver/blob/b8138fa5a23f4ce40603cae8defd82d10734fdbd/environment.yml) file available on this repository, input the following settings in the [configuration module](https://github.com/VUB-HYDR/MeteoSaver/blob/b8138fa5a23f4ce40603cae8defd82d10734fdbd/configuration.ini) specific to your case study (sheets):
+1. General: Here, you specify the environment in which the scripts will run, i.e. ```local``` (Sequential processing on a personal computer) or ```hpc``` (Parallel processing using multiple processors, suitable for High Performance Computing (HPC) environments). This is set to ```local``` by default
+2. Directories. Here, 
+
+The figure below describes all the configuration user-settings.
+![Configuration_user_settings](https://github.com/VUB-HYDR/MeteoSaver/blob/4ddd56d52b3dda19afc6227595eba0d6ca843c30/docs/Configuration%20user%20settings.png)
 
 ## Authors
 Derrick Muheki
