@@ -2,11 +2,6 @@
 
 Here we present MeteoSaver v1.0, a machine-learning based software for the transcription of historical weather data.
 
-### Note: This README is still under development. However the code/scripts are up-to-date
-
-![](docs/data_rescue_flowchart.png)
-
-
 ## Directory structure
 
 Below is the structure for this project.
@@ -119,6 +114,14 @@ To spin up a docker image using:
 ```
 docker run -it -v /local_data:/docker_data_dir transcribing_drc_data_environment
 ```
+
+## Modules
+The figure below represents the modules in MeteoSaver v1.0
+![Schematic representation of the modules in MeteoSaver v1.0](https://raw.githubusercontent.com/VUB-HYDR/MeteoSaver/522d6213c9db5cf03e1ba9976ad4bb43d6534aec/docs/Schematic%20representation%20of%20the%20modules%20in%20MeteoSaver%20v1.0.png)
+
+
+## How to run MeteoSaver v1.0 
+1. After setting up the python environment using the [environment.yml](https://github.com/VUB-HYDR/MeteoSaver/blob/5b775a3047a38b86836bfdc24718ee2064756400/environment.yml) file available on this repository, input your user-sepcific settings in the configuration module
 
 ## Authors
 Derrick Muheki
