@@ -36,7 +36,7 @@ Below is the structure for this project.
 |
 |                                       
 ├── src                                                     <- Modules (2-6): Transcribing code/scripts for MeteoSaver v1.0
-│   ├── main.py                                             <- Main script to run all the modules 1-6 of MetoSaver (scripts)
+│   ├── main.py                                             <- Main script to run all the modules 1-6 of MeteoSaver (scripts)
 |   |                                                          i.e. in order (i) configuration, (iI) image-preprocessing module, (iii) table and cell
 |   |                                                          detection model, (iv) transcription, (v) quality assessment and control,
 |   |                                                          and (vi) data formatting and upload
