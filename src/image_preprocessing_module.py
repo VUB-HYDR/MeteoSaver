@@ -5,11 +5,12 @@ import matplotlib.pyplot as plt
 
 def image_preprocessing(image_path):
     '''
-    Performs image pre-processing by converting a colored image to grayscale and applying binarization.
+    Performs image pre-processing by converting a colored image to grayscale and binarizing it by applying adaptive thresholding.
 
     This function reads an image from the specified path, converts it from its original colored format to grayscale, 
-    and then applies binarization using Otsu's method. Binarization is a common step in image analysis tasks to 
-    segment the image into foreground and background for further processing.
+    and applies adaptive thresholding to binarize the image. Binarization is performed using the adaptive mean 
+    thresholding method, which dynamically calculates a threshold for each small region of the image. This process 
+    ensures better segmentation in varying lighting conditions.
 
     Parameters
     --------------
@@ -18,8 +19,10 @@ def image_preprocessing(image_path):
 
     Returns
     --------------
+    image_in_grayscale: numpy.ndarray
+        The grayscale version of the input image.
     binarized_image: numpy.ndarray
-        The pre-processed binarized image, where the foreground is distinguished from the background.
+        The pre-processed binarized image, where the foreground (text or key features) is distinguished from the background.
     original_image: numpy.ndarray
         The original colored image as read from the file.
     '''
