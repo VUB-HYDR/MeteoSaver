@@ -132,7 +132,8 @@ After setting up the python environment using the [environment.yml](https://gith
 
 After inputting the configuration settings specific to your case study (see Table below), you can then run the [main.py](https://github.com/VUB-HYDR/MeteoSaver/blob/7aeab0f526b44056c062407df7cfe467e20a67d8/src/main.py) script which runs all the modules 1-6 of MeteoSaver i.e. in order (i) configuration, (iI) image-preprocessing module, (iii) table and cell detection model, (iv) transcription, (v) quality assessment and control, and (vi) data formatting and upload, and return results in the specified directories. 
 
-```As a Minimal Working Example (MWE), you can run the entire script in this repository without modifying any configuration settings. Simply set up the Python environment and execute the script using [main.py](https://github.com/VUB-HYDR/MeteoSaver/blob/7aeab0f526b44056c062407df7cfe467e20a67d8/src/main.py)```
+```As a Minimal Working Example (MWE), you can run the entire script in this repository without modifying any configuration settings. Simply set up the Python environment and execute the script using [main.py](https://github.com/VUB-HYDR/MeteoSaver/blob/7aeab0f526b44056c062407df7cfe467e20a67d8/src/main.py)
+```
 
 The figure below describes all the configuration user-settings.
 ![Configuration_user_settings](https://github.com/VUB-HYDR/MeteoSaver/blob/4ddd56d52b3dda19afc6227595eba0d6ca843c30/docs/Configuration%20user%20settings.png)
