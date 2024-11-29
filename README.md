@@ -62,7 +62,7 @@ Below is the structure for this project.
 │
 ├── Dockerfile                                              <- Docker install routine for a virtual environment
 |
-├──LICENSE                                                  <- Licence
+├──LICENSE                                                  <- License
 |
 ├── configuration.ini                                       <- Module 1: Configuration. User-defined settings to ensure smooth running of MeteoSaver
 |
