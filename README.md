@@ -122,7 +122,7 @@ The figure below represents the modules in MeteoSaver v1.0
 
 
 ## How to run MeteoSaver v1.0 
-After setting up the python environment using the [environment.yml](https://github.com/VUB-HYDR/MeteoSaver/blob/b8138fa5a23f4ce40603cae8defd82d10734fdbd/environment.yml) file available on this repository, input the following settings in the [configuration module](https://github.com/VUB-HYDR/MeteoSaver/blob/b8138fa5a23f4ce40603cae8defd82d10734fdbd/configuration.ini) specific to your case study (sheets) before running:
+After setting up the python environment using the [environment.yml](https://github.com/VUB-HYDR/MeteoSaver/blob/b8138fa5a23f4ce40603cae8defd82d10734fdbd/environment.yml) file available on this repository, input the following settings in the [configuration module](https://github.com/VUB-HYDR/MeteoSaver/blob/b8138fa5a23f4ce40603cae8defd82d10734fdbd/configuration.ini) specific to your case study (sheets) before running (see table below):
 1. General: Here, you specify the environment in which the scripts will run, i.e. ```local``` (Sequential processing on a personal computer) or ```hpc``` (Parallel processing using multiple processors, suitable for High Performance Computing (HPC) environments). This is set to ```local``` by default
 2. Directories. Here, you specify the directories for the following: (i) all historical weather data sheet images in folders per station, (ii) pre-QA/QC transcribed data, (iii) post-QA/QC transcribed data, (iv) the final refined daily hydroclimate data (after all quality checks), (v) transient transcription output during processing, (vi) manually transcribed data (used for validation), (vii) alidation results comparing manually transcribed and the MeteoSaver transcribed data, and (viii) all the stations metadata.
 3. Table and Cell Detection: User specifications for table and cell detection.
@@ -137,7 +137,7 @@ You can run the entire script in this repository as a Minimal Working Example (M
 
 
 ### Configuration user-settings
-The figure below describes all the configuration user-settings.
+The table below describes all the configuration user-settings.
 ![Configuration_user_settings](https://github.com/VUB-HYDR/MeteoSaver/blob/4ddd56d52b3dda19afc6227595eba0d6ca843c30/docs/Configuration%20user%20settings.png)
 
 
