@@ -391,43 +391,55 @@ def merge_excel_files(file1, file2, output_file, start_row, end_row):
 
 def transcription(detected_table_cells, ocr_model, tesseract_path, transient_transcription_output_dir, pre_QA_QC_transcribed_hydroclimate_data_dir_station, station, month_filename, no_of_rows, no_of_columns, no_of_rows_including_headers):
     '''
-    Performs OCR (Optical Character Recognition) on detected table cells from a pre-processed grayscale image to extract text and store the results in an Excel workbook.
+    Performs OCR (Optical Character Recognition) on detected table cells from a pre-processed image 
+    to extract and organize textual data into an Excel workbook.
 
-    This function processes a detected table within an image, using contours to identify individual cells. It clips each cell and applies the specified OCR/HTR (Handwritten Text Recognition) model to transcribe the text within each cell. The results are then saved in an Excel workbook.
+    This function processes detected tables within an image by isolating table cells using contours, 
+    clipping the cell regions, and applying OCR/HTR (Handwritten Text Recognition) to transcribe text. 
+    The transcribed data is organized into a structured Excel workbook, complete with headers and formatting. 
+    Multiple methods are employed to double-check bounding box placements and ensure robust data extraction.
 
     Parameters
     --------------
     detected_table_cells : list
-        detected_table_cells[0]: contours. Contours for the detected text in the table cells.
-        detected_table_cells[1]: image_with_all_bounding_boxes. Image with bounding boxes drawn around each detected table cell.
-        detected_table_cells[2]: table_copy. A copy of the processed table image used for further operations.
-        detected_table_cells[3]: table_original_image. The original image of the table before any processing.
+        A list containing:
+        - detected_table_cells[0]: contours. Contours representing detected table cells.
+        - detected_table_cells[1]: image_with_all_bounding_boxes. Image with bounding boxes drawn around detected cells.
+        - detected_table_cells[2]: table_copy. Processed table image for further operations.
+        - detected_table_cells[3]: table_original_image. Original table image before processing.
     
-    ocr_model : string
-        The OCR or HTR model used to recognize and transcribe text from the detected table cells. This can be any model that supports text recognition, such as Tesseract, EasyOCR, or a custom deep learning model.
+    ocr_model : str
+        The OCR/HTR model used for text recognition. Options include 'Tesseract-OCR', 'EasyOCR', or PaddleOCR
+    
+    tesseract_path : str
+        Path to the Tesseract executable, required if 'Tesseract-OCR' is the selected model.
+    
+    transient_transcription_output_dir : str
+        Directory for saving intermediate results, such as detected regions of interest (ROIs).
+    
+    pre_QA_QC_transcribed_hydroclimate_data_dir_station : str
+        Directory for saving the final transcribed Excel file before QA/QC steps.
+    
+    station : str
+        Identifier of the station (station no.), used for organizing output files.
+    
+    month_filename : str
+        Filename of the processed image, representing a specific month and year.
     
     no_of_rows : int
-        The number of rows in the detected table. This parameter helps in structuring the data correctly in the output workbook.
+        Expected number of rows in the detected table, excluding headers.
     
     no_of_columns : int
-        The number of columns in the table, used to structure the OCR results.
+        Expected number of columns in the detected table.
     
-    min_cell_width_threshold : int
-        The minimum width of a cell (in pixels) that should be considered for OCR. Cells smaller than this threshold are ignored.
-    
-    max_cell_width_threshold : int
-        The maximum width of a cell (in pixels) that should be considered for OCR. Cells wider than this threshold are ignored.
-    
-    min_cell_height_threshold : int
-        The minimum height of a cell (in pixels) that should be considered for OCR. Cells smaller than this threshold are ignored.
-    
-    max_cell_height_threshold : int
-        The maximum height of a cell (in pixels) that should be considered for OCR. Cells taller than this threshold are ignored.
+    no_of_rows_including_headers : int
+        Total number of rows in the table, including headers.
 
     Returns
-    -------------- 
-    wb : openpyxl.Workbook
-        An Excel workbook object where the OCR results are stored. Each cell's transcribed text is placed in the corresponding cell of the Excel sheet based on its detected position in the image.
+    --------------
+    path_to_save_merged_excel_file : str
+        Path to the final transcribed Excel workbook containing extracted and organized text.
+
     '''
     
     

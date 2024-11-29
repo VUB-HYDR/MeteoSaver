@@ -141,6 +141,33 @@ def has_two_digits_in_order(value, calculated_value):
 
 # Save intermediate versions
 def save_intermediate_version(workbook, stage, transient_transcription_output_dir_station, month_filename):
+    '''
+    Saves an intermediate version of the transcribed Excel workbook at a specified QA/QC stage.
+
+    This function helps track changes and progress throughout the transcription and QA/QC process by saving 
+    the Excel workbook at each defined stage. The intermediate file is named based on the stage identifier 
+    and stored in the specified directory.
+
+    Parameters
+    --------------
+    workbook : openpyxl.Workbook
+        The Excel workbook object containing transcribed data to be saved.
+    
+    stage : str
+        A label or identifier for the current QA/QC stage (e.g., 'decimal_place_correction', 'digit_manipulation').
+    
+    transient_transcription_output_dir_station : str
+        Directory path for saving the intermediate file, typically associated with a specific station.
+    
+    month_filename : str
+        Filename indicating the processed month and year, used for naming the intermediate file.
+
+    Returns
+    --------------
+    intermediate_file : str
+        The full path to the saved intermediate file.
+    '''
+
     # To save intermediate versions of the trnascribed file throughout the different QA/QC steps 
     intermediate_file = os.path.join(transient_transcription_output_dir_station, f'{month_filename}_stage_{stage}.xlsx')
     workbook.save(intermediate_file)
@@ -148,24 +175,62 @@ def save_intermediate_version(workbook, stage, transient_transcription_output_di
     
 def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_QA_QC_transcribed_hydroclimate_data_dir_station, month_filename, max_temperature_threshold, min_temperature_threshold, decimal_places, uncertainty_margin, header_rows, multi_day_totals, multi_day_averages, max_days_for_multi_day_total, multi_day_totals_rows, final_totals_rows, excluded_rows, excluded_columns, columns_to_check, columns_to_check_with_extra_variable):
     '''
-    Performs Quality Assessment and Quality Control (QA/QC) checks on transcribed climate data to ensure data quality and correctness.
+    Performs Quality Assessment and Quality Control (QA/QC) checks on transcribed hydroclimatic data.
 
-    This function applies various checks and corrections to the transcribed data, including threshold checks for temperatures, check sums and averages, as well as ad-hoc data corrections. The goal is to produce a cleaned and reliable dataset for further analysis or storage.
+    This function systematically verifies and corrects transcribed data by applying a series of checks, 
+    recalculations, and adjustments based on predefined thresholds and logical rules. It handles validation 
+    of individual cell values, multi-day totals and averages, as well as relationships between temperature 
+    variables (e.g., max, min, average, and duirnal temperature range). It also highlights discrepancies and uncertainties, ensuring a clean, 
+    reliable dataset for further use.
 
     Parameters
     --------------
-    pre_processed_excel_file: str 
-        The path to the Excel file containing preprocessed transcribed data or an ExcelFile object.
-    postprocessed_data_dir: str
-        The directory path where the final postprocessed Excel file will be stored.
-    month_filename: str
-        The base name for the output files, typically incorporating station metadata and derived from the original images of climate data sheets.
+    transcribed_table : str
+        Path to the Excel file containing the initial transcribed data.
+    station : str
+        Identifier for the station (station no.) being processed, used for organizing outputs.
+    transient_transcription_output_dir : str
+        Directory for saving intermediate results during QA/QC steps.
+    post_QA_QC_transcribed_hydroclimate_data_dir_station : str
+        Directory for saving the final post-QA/QC dataset.
+    month_filename : str
+        Base name for the output files, typically including station metadata and the month/year of the data.
+    max_temperature_threshold : float
+        Upper limit for valid temperature values, used to flag potential errors.
+    min_temperature_threshold : float
+        Lower limit for valid temperature values, used to flag potential errors.
+    decimal_places : int
+        Number of decimal places to adjust the transcribed values. Values are divided by `10**decimal_places`.
+    uncertainty_margin : float
+        Allowed margin of error for numerical comparisons (e.g., in totals, averages).
+    header_rows : int
+        Number of header rows in the dataset to exclude from numerical checks.
+    multi_day_totals : bool
+        Whether the dataset includes multi-day total rows for validation.
+    multi_day_averages : bool
+        Whether the dataset includes multi-day average rows for validation.
+    max_days_for_multi_day_total : int
+        Maximum number of days included in a multi-day total calculation.
+    multi_day_totals_rows : list of int
+        Row indices of the multi-day total rows in the dataset.
+    final_totals_rows : list of int
+        Row indices of the final total rows in the dataset.
+    excluded_rows : list of int
+        Row indices to exclude from QA/QC checks.
+    excluded_columns : list of int
+        Column indices to exclude from QA/QC checks.
+    columns_to_check : list of str
+        List of column letters to check for temperature variables (e.g., max, min, average).
+    columns_to_check_with_extra_variable : list of str
+        List of column letters to check for temperature variables, including additional variables like amplitude (duirnal temperature range).
 
     Returns
     --------------
-    new_workbook: Excel file
-        The postprocessed Excel file containing the cleaned and verified climate data.
+    new_workbook : openpyxl.Workbook
+        The post-QA/QC Excel workbook object containing the cleaned and verified data.
+
     '''
+
     # Open directory with pre_QA_QC_transcribed data excel file
     workbook = openpyxl.load_workbook(transcribed_table)
     worksheet = workbook.active
@@ -783,42 +848,6 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
                 highlight_change('FF6DCD57', cell_for_average, new_version_of_file)  # Highlight average in green
                 new_workbook.save(new_version_of_file)
 
-
-
-
-            # # Multi-day total recalculation
-            # if all(is_highlighted(day, 'FF6DCD57') for day in days) and not confirmed_cell_for_total:  # Recalculate the multi-day total incase the days data (that leads up to the total) are all confirmed ('green')
-            #     total_value = sum(float(day.value) for day in days if day.value is not None and is_string_convertible_to_float(day.value))
-            #     cell_for_total.value = round(total_value, 1)
-            #     highlight_change('FF6DCD57', cell_for_total, new_version_of_file) # Highlight in green for correct value
-            # elif sum(is_highlighted(day, 'FF6DCD57') for day in days) == len(days) - 1: #   Incase the transcribed value of only one of the days (leading up to total) wasn't confirmed (green)
-            #     non_confirmed_day = next(day for day in days if not is_highlighted(day, 'FF6DCD57')) # identify this unconfirmed day transcribed value
-            #     if confirmed_cell_for_total and is_string_convertible_to_float(cell_for_total.value): # Incase the multi-day total was confirmed in previous QA/QC steps, we can then calculate the remaining one confirmed value
-            #         total_value = float(cell_for_total.value)
-            #         non_confirmed_day.value = round(total_value - sum(float(day.value) for day in days if day != non_confirmed_day and day.value is not None and is_string_convertible_to_float(day.value)), 1)
-            #         highlight_change('FF6DCD57', non_confirmed_day, new_version_of_file)
-
-            # # Get the value of the multi day average (in our case '5/6-day average) that was transcribed. In months with 31 days, the period from the 26th to the 31st might form a 6-day average.
-            # if multi_day_averages:
-            #     cell_for_average = new_worksheet[f"{column}{row + 1}"]
-            #     confirmed_cell_for_average = is_highlighted(cell_for_average, 'FF6DCD57') # Check whether the multi-day average was confirmed (green)
-
-            #     # Multi-day average recalculation
-            #     valid_cells = [float(day.value) for day in days if day.value is not None and is_string_convertible_to_float(day.value)] # Check if there are valid cells (with values) for analysis
-            #     if valid_cells: 
-            #         if all(is_highlighted(day, 'FF6DCD57') for day in days) and not confirmed_cell_for_average:  # Recalculate the multi-day average incase the days data (that leads up to the average) are all confirmed ('green')
-            #             average_value = mean(float(day.value) for day in days if day.value is not None and is_string_convertible_to_float(day.value))
-            #             cell_for_average.value = round(average_value, 1)
-            #             highlight_change('FF6DCD57', cell_for_average, new_version_of_file) # Highlight in green for correct value
-            #     elif sum(is_highlighted(day, 'FF6DCD57') for day in days) == len(days) - 1:
-            #         non_confirmed_day = next(day for day in days if not is_highlighted(day, 'FF6DCD57')) # identify this unconfirmed day transcribed value
-            #         confirmed_days = [float(day.value) for day in days if day != non_confirmed_day and day.value is not None and is_string_convertible_to_float(day.value)] #confirmed days
-            #         if confirmed_cell_for_average and is_string_convertible_to_float(cell_for_average.value):  # Incase the multi-day average was confirmed in previous QA/QC steps, we can then calculate the remaining one day confirmed value
-            #             # Calculate the missing day based on the confirmed average and other days
-            #             total_value = round(float(cell_for_average.value) * len(offset_cells))
-            #             non_confirmed_day.value = round(total_value - sum(float(day.value) for day in days if day != non_confirmed_day and day.value is not None), 1)
-            #             # non_confirmed_day.value = round((float(cell_for_average.value) * (len(confirmed_days) + 1)) - sum(confirmed_days), 1)                        
-            #             highlight_change('FF6DCD57', non_confirmed_day, new_version_of_file)
        
     # Save the workbook after all changes
     new_workbook.save(new_version_of_file)
@@ -1079,51 +1108,3 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
 
     return new_workbook
 
-
-
-
-# Compare the 'confirmed' transcribed and post corrected data with manually entered data
-def compare_workbooks(file1, file2, uncertainty_margin, header_rows, columns_to_check):
-    # Load both workbooks
-    wb1 = openpyxl.load_workbook(file1)
-    ws1 = wb1.active
-
-    wb2 = openpyxl.load_workbook(file2)
-    ws2 = wb2.active
-
-    # First, Convert column letters to numbers
-    columns_to_check_indices = [openpyxl.utils.column_index_from_string(col) for col in columns_to_check]
-
-    # Get min_col and max_col from the columns_to_check
-    min_col = min(columns_to_check_indices)
-    max_col = max(columns_to_check_indices)
-
-
-    total_highlighted_cells = 0
-    accurate_matches = 0
-
-    # Iterate through the cells in the first workbook
-    for row in ws1.iter_rows(min_row=header_rows+1, max_row=ws1.max_row, min_col=min_col, max_col=max_col):
-        for cell in row:
-            if is_highlighted(cell, 'FF6DCD57'):
-                total_highlighted_cells += 1
-
-                cell_value_ws1 = cell.value
-                cell_value_ws2 = ws2.cell(row=cell.row, column=cell.column).value
-
-                if is_string_convertible_to_float(cell_value_ws1) and is_string_convertible_to_float(cell_value_ws2):
-                    if abs(float(cell_value_ws1) - float(cell_value_ws2)) <= uncertainty_margin:
-                        accurate_matches += 1
-
-    if total_highlighted_cells == 0:
-        accuracy_percentage = 0.0
-    else:
-        accuracy_percentage = (accurate_matches / total_highlighted_cells) * 100
-
-    print(f"Total Highlighted Cells: {total_highlighted_cells}")
-    #print(f"Accurate Matches: {accurate_matches}")
-    print(f"Accuracy Percentage: {accuracy_percentage:.2f}%")
-
-    # Close the workbooks
-    wb1.close()
-    wb2.close()

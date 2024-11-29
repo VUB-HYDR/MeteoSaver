@@ -288,46 +288,51 @@ def add_missing_rois(sorted_contours, space_threshold, width_threshold, max_heig
 
 def table_and_cell_detection(image_in_grayscale, binarized_image, original_image, station, month_filename, transient_transcription_output_dir, clip_up, clip_down, clip_left, clip_right, max_table_width, max_table_height, min_cell_width_threshold, min_cell_height_threshold, max_cell_width_threshold, max_cell_height_threshold, space_height_threshold, space_width_threshold, max_cell_height_per_box, no_of_rows, no_of_columns):
     '''
-    Detects and extracts a table from a grayscale image using a combination of machine learning (ML) and image processing techniques. This function isolates table cells, removes vertical and horizontal lines, and prepares the table for further optical character recognition/ handwritten text recognition (OCR/HTR).
-
-    The process involves detecting the largest contour in the binarized image that represents the table and handling table extraction through both automatic and manual clipping techniques. It also provides functionality to handle errors, preventing further steps if the automatic table detection fails. Clipping parameters allow for flexible removal of headers and row labels, tailoring the output to the use case.
+    Detects and extracts tables and cells from a grayscale image using a combination of OpenCV-based image processing techniques.
+    
+    This function identifies the largest table-like region in the provided image, clips it using specified margins, and isolates table cells 
+    by removing horizontal and vertical lines. It provides robust handling of cases where automatic table detection fails by allowing for 
+    manual clipping. The processed table is then used for further text detection and analysis.
 
     Parameters
     --------------
-    image_in_grayscale : np.ndarray
-        The pre-processed grayscale version of the original image, used for table detection. 
-    binarized_image : np.ndarray
-        The binarized version of the grayscale image where pixel intensities are set to binary values (0 or 255).
-    original_image : np.ndarray
-        The original input image without any preprocessing, used to extract the table in its original form.
+    image_in_grayscale : numpy.ndarray
+        The pre-processed grayscale version of the original image, used for table detection.
+    binarized_image : numpy.ndarray
+        The binarized version of the grayscale image where pixel intensities are reduced to binary values (0 or 255).
+    original_image : numpy.ndarray
+        The original colored input image for extracting the table in its original form.
     station : str
-        Identifier of the station, used for organizing the output.
+        Identifier of the station (station no.), used for saving outputs.
     month_filename : str
-        The filename associated with the processed image, representing a specific month and year of the data.
+        Name of the file being processed, representing the specific month and year.
     transient_transcription_output_dir : str
-        Directory path where the binarized and processed table images are saved.
-    clip_up : int
-        Number of pixels to clip from the top of the detected table, useful for removing headers.
-    clip_down : int
-        Number of pixels to clip from the bottom of the detected table, useful for excluding unnecessary bottom parts of the table.
-    clip_left : int
-        Number of pixels to clip from the left side of the detected table, typically for removing row labels (pentad no and date since these are repetitive).
-    clip_right : int
-        Number of pixels to clip from the right side of the detected table, usually for excluding excess margins and the extra date column.
-    max_table_width : int
-        Maximum width (in pixels) of the detected table. If exceeded, manual table clipping is applied as this shows that the automatic table detection failed due to paper quality.
-    max_table_height : int
-        Maximum height (in pixels) of the detected table. If exceeded, manual table clipping is applied as this shows that the automatic table detection failed due to paper quality.
+        Directory to save intermediate results.
+    clip_up, clip_down, clip_left, clip_right : int
+        Number of pixels to clip from each side of the detected table: (i) from the top of the detected table for removing headers, (ii) from the bottom of the detected table for excluding unnecessary bottom parts of the table, (iii) from the left side of the detected table typically for removing row labels (pentad no and date since these are repetitive), and (iv) from the right side of the detected table, usually for excluding excess margins and the extra date column.
+    max_table_width, max_table_height : int
+        Maximum allowable dimensions for the detected table. If exceeded, manual clipping is applied.
+    min_cell_width_threshold, min_cell_height_threshold : int
+        Minimum width and height (in pixels) for valid table cells.
+    max_cell_width_threshold, max_cell_height_threshold : int
+        Maximum width and height (in pixels) for valid table cells.
+    space_height_threshold, space_width_threshold : int
+        Threshold for vertical and horizontal spacing between bounding boxes to identify missing cells.
+    max_cell_height_per_box : int
+        Maximum height allowed for any single cell.
+    no_of_rows, no_of_columns : int
+        Expected number of rows and columns in the table, used for detecting and filling missing cells.
 
     Returns
     --------------
     detected_table_cells : list
         A list containing:
-        - detected_table_cells[0]: contours representing the detected text in the table cells.
-        - detected_table_cells[1]: image with bounding boxes around each detected table cell.
-        - detected_table_cells[2]: binarized version of the detected table after line removal.
+        - detected_table_cells[0]: contours representing the detected text in table cells.
+        - detected_table_cells[1]: image with bounding boxes drawn around detected table cells.
+        - detected_table_cells[2]: binarized version of the detected table.
         - detected_table_cells[3]: clipped original table image.
-        - detected_table_cells[4]: full detected table (unclipped) including headers and row labels.
+        - detected_table_cells[4]: full detected table (unclipped), including headers and row labels.
+
 
     Notes
     --------------
@@ -335,6 +340,7 @@ def table_and_cell_detection(image_in_grayscale, binarized_image, original_image
     - The function also removes horizontal and vertical lines, including dotted lines, to isolate text in the table cells.
     - The dimensions of the table are customizable based on the dataset used, and clipping values can be set to 0 to keep the full table.
     - Error handling is included to return None if table detection fails for a specific station and month.
+    - The function supports visualizations for debugging by uncommenting the relevant sections of the code.
 
     '''
 

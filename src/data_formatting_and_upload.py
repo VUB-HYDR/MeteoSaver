@@ -55,58 +55,38 @@ def is_highlighted_green(cell, color):
         return fill.rgb == color
     return False
 
-# Create a function to plot with dashed lines for missing data
-def plot_with_missing(ax, series, label, color):
-    '''
-    Plots a time series with a solid line, highlighting segments with missing data using dashed lines.
-
-    This function plots a time series on the given Axes object (`ax`). The main data is represented by a solid line. 
-    Where there are missing values (`NaN`) in the series, dashed lines are plotted to indicate the gaps.
-
-    Parameters
-    --------------
-    ax: matplotlib.axes.Axes
-        The matplotlib Axes object where the series will be plotted.
-    series: pandas.Series
-        The time series data to plot. The index should represent the x-axis (e.g., dates), and the values represent the y-axis data.
-    label: str
-        The label for the series, used for the legend.
-    color: str
-        The color of the plot line.
-
-    Returns
-    --------------
-    None
-        The function plots the series directly onto the provided Axes object and does not return any value.
-    '''
-
-
-    # Plot the main line
-    ax.plot(series.index, series, label=label, color=color, linestyle='-')
-    
-    # Create a mask for missing values
-    is_nan = series.isna()
-    
-    # Find start and end points of missing data segments
-    missing_segments = []
-    start = None
-    for i in range(len(is_nan)):
-        if is_nan.iloc[i] and start is None:
-            start = i
-        elif not is_nan.iloc[i] and start is not None:
-            missing_segments.append((start, i))
-            start = None
-    if start is not None:
-        missing_segments.append((start, len(is_nan)))
-    
-    # Plot dashed lines for missing data
-    for start, end in missing_segments:
-        if start > 0 and end < len(series):
-            ax.plot(series.index[start-1:end+1], series[start-1:end+1], linestyle='--', color=color)
-
 
 def dms_to_decimal(dms_str):
-    """Convert DMS (degrees, minutes, seconds) string to decimal degrees."""
+    """
+    Convert a DMS (Degrees, Minutes, Seconds) string to decimal degrees.
+
+    This function takes a string representing geographic coordinates in the 
+    Degrees-Minutes-Seconds (DMS) format and converts it to a decimal degrees 
+    representation. It accounts for directional indicators (N, S, E, W) 
+    to determine the sign of the decimal value.
+
+    Parameters
+    ----------
+    dms_str : str
+        The DMS string to be converted. The expected format includes an optional 
+        direction (N/S/E/W), followed by degrees (°) and minutes ("), e.g., "N 45°30".
+
+    Returns
+    -------
+    float
+        The converted decimal degrees value, rounded to four decimal places. Returns
+        NaN if the input is not a valid DMS string.
+
+    Raises
+    ------
+    ValueError
+        If the input string does not match the expected DMS format.
+
+    
+    For example:
+    --------
+    dms_to_decimal("N 45°30") to 45.5000
+    """
 
     if not isinstance(dms_str, str):
         # Return NaN if the input is not a valid string
@@ -127,8 +107,32 @@ def dms_to_decimal(dms_str):
     return round(decimal, 4)
 
 def load_station_metadata(file_path, sheet_name='Stations'):
-    """Load station metadata from Excel file and convert latitude/longitude to decimal degrees."""
+    """
+    Load station metadata from an Excel file and convert geographic coordinates to decimal degrees.
+
+    This function reads station metadata from a specified Excel file and processes it to standardize
+    column names, trim whitespace, and convert latitude and longitude values from Degrees-Minutes-Seconds 
+    (DMS) format to decimal degrees. It returns a cleaned DataFrame with essential station details.
+
+    Parameters
+    ----------
+    file_path : str
+        The file path to the Excel file containing the station metadata.
+    sheet_name : str, optional
+        The name of the Excel sheet to read. Defaults to 'Stations'.
+
+    Returns
+    -------
+    pandas.DataFrame
+        A DataFrame containing cleaned and processed station metadata with the following columns:
+        - 'ID': Unique identifier for each station (station no.).
+        - 'name': Station name.
+        - 'latitude': Latitude in decimal degrees.
+        - 'longitude': Longitude in decimal degrees.
+        - 'altitude': Altitude in meters.
+    """
     df = pd.read_excel(file_path, sheet_name=sheet_name)
+
     df = df.rename(columns={
         'Station': 'name',
         'Station ID': 'ID',
@@ -148,8 +152,50 @@ def load_station_metadata(file_path, sheet_name='Stations'):
 
 
 
-def convert_to_sef_with_metadata(df, station_info, temp_column, temp_type, source="Institut National pour l’Etude et la Recherche Agronomiques", link="", stat="point", units="C", observer=""):
-    """Convert DataFrame to SEF format for a specific temperature type using station metadata."""
+def convert_to_sef_with_metadata(df, station_info, temp_column, temp_type, source="Institut National pour l'Etude et la Recherche Agronomiques", link="", stat="point", units="C", observer=""):
+    """
+    Convert a DataFrame containing temperature data into the Station Exchange Format (SEF, .tsv) using station metadata.
+
+    This function creates SEF-compliant output by combining temperature data from a given DataFrame with station metadata. 
+    The SEF headers are dynamically constructed based on the station information, and the temperature data is formatted into 
+    SEF-compliant rows with specified temperature type and metadata.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        DataFrame containing temperature data. It must include columns 'Year', 'Month', 'Day', and the temperature column specified in `temp_column`.
+    station_info : dict
+        Dictionary containing station metadata with keys:
+        - 'ID': Unique station identifier (station number).
+        - 'name': Station name.
+        - 'latitude': Latitude of the station (in decimal degrees).
+        - 'longitude': Longitude of the station (in decimal degrees).
+        - 'altitude': Altitude of the station (in meters).
+    temp_column : str
+        The name of the column in `df` that contains the temperature data to be converted.
+    temp_type : str
+        The type of temperature variable being converted (e.g., "Tmax" for maximum temperature).
+    source : str, optional
+        The source of the data (default is "Institut National pour l'Etude et la Recherche Agronomiques").
+    link : str, optional
+        A URL or link to additional information about the data (default is an empty string).
+    stat : str, optional
+        Statistical representation of the data (e.g., "point", "mean"). Defaults to "point".
+    units : str, optional
+        The units of the temperature data (default is "C" for Celsius).
+    observer : str, optional
+        Information about the data observer or recorder (default is an empty string).
+
+    Returns
+    -------
+    tuple
+        - sef_headers: dict
+            A dictionary containing the SEF header metadata.
+        - sef_df: pandas.DataFrame
+            A DataFrame representing the SEF data rows, including temperature values and metadata.
+
+    
+    """
     
     # Define SEF headers as a list of strings
     sef_headers = {
@@ -190,17 +236,50 @@ def convert_to_sef_with_metadata(df, station_info, temp_column, temp_type, sourc
 
 def data_formatting(input_folder_path, output_folder_path, metadata_file_path, station, date_column, columns_to_check, header_rows, multi_day_totals, multi_day_averages, excluded_rows, additional_excluded_rows, final_totals_rows, uncertainty_margin):
 
-    ''' Selects the confirmed data (from the quality control) and converts the excel file to a format ready to be converted to the Station Exchange Format
+    ''' 
+    Process meteorological observation data, flag anomalies, and convert it into SEF format for archival and analysis.
+
+    This function processes meteorological observation data from multiple Excel files in the specified input folder. It selects
+    confirmed data after quality checks, flags anomalies based on standard deviation thresholds, and converts the data to the
+    Station Exchange Format (SEF). It also generates a timeseries plot of maximum, minimum, and average temperatures.
+
     Parameters
-    --------------   
-    input_folder_path: path of postprocessed files
-    output_folder_path: output path for the selected data
-    station: station number
+    ----------
+    input_folder_path : str
+        Path to the folder containing post-processed Excel files for a specific station.
+    output_folder_path : str
+        Path to the folder where processed files, SEF outputs, and plots will be saved.
+    metadata_file_path : str
+        Path to the metadata file containing station information (e.g., ID, latitude, longitude, altitude).
+    station : str
+        Unique identifier (station no.) for the station being processed.
+    date_column : str
+        The column in the Excel files containing the date (e.g., 'B' for column B).
+    columns_to_check : list of str
+        List of column letters containing the temperature variables to process (e.g., ['D', 'E', 'F'] for Max, Min, Avg temperatures).
+    header_rows : int
+        Number of header rows in the Excel files to skip before the data begins.
+    multi_day_totals : bool
+        Whether multi-day totals (e.g., cumulative data) are present in the files.
+    multi_day_averages : bool
+        Whether multi-day averages (e.g., weekly averages) are present in the files.
+    excluded_rows : list of int
+        Rows to exclude from processing, typically header rows or other non-data rows.
+    additional_excluded_rows : list of int
+        Additional rows to exclude when multi-day averages are present.
+    final_totals_rows : list of int
+        Rows to exclude that contain only final totals.
+    uncertainty_margin : float
+        The uncertainty margin to apply for flagging anomalies and plotting confidence intervals.
 
     Returns
-    -------------- 
-    Excel files with selected (confirmed) transcribed data -> in new format 
-    Timeseries plot of max, min and avg temperature (confirmed) at particular station
+    -------
+    None
+        The function does not return any value but performs the following:
+        - Saves processed and flagged data to Excel files.
+        - Converts temperature data into SEF format and saves as .tsv files.
+        - Generates and saves timeseries plots of temperatures with confidence intervals.
+
     
     '''
 

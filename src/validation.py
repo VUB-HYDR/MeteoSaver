@@ -65,15 +65,44 @@ def is_highlighted_green(cell, color):
 
 def select_and_convert_postprocessed_data(filepath, date_column, columns_to_check, header_rows, multi_day_totals, multi_day_averages, excluded_rows, additional_excluded_rows, final_totals_rows):
 
-    ''' Selects the confirmed data (from the quality control) and converts the excel file to a format ready to be converted to the Station Exchange Format
+    ''' 
+    Selects confirmed transcribed data after QA/QC checks and converts it into an .xlsx format ready for conversion to the Station Exchange Format (SEF).
+
+    This function processes a QA/QC-verified Excel file, extracting validated temperature data for max, min, and average values. 
+    It filters out invalid rows, handles sharp transitions, and identifies outliers. The resulting DataFrame is structured for further analysis or export.
+
     Parameters
-    --------------   
-    filepath: path of QA/QC checked files
+    --------------
+    filepath : str
+        Path to the QA/QC-verified Excel file.
+    date_column : str
+        Column letter containing the date values (e.g., 'B').
+    columns_to_check : list of str
+        List of column letters to extract temperature values (e.g., ['D', 'E', 'F'] for max, min, and average temperatures).
+    header_rows : int
+        Number of header rows to exclude from processing.
+    multi_day_totals : bool
+        Whether the dataset includes multi-day total rows.
+    multi_day_averages : bool
+        Whether the dataset includes multi-day average rows.
+    excluded_rows : list of int
+        List of row indices to exclude from processing.
+    additional_excluded_rows : list of int
+        Additional row indices to exclude if multi-day averages are included.
+    final_totals_rows : list of int
+        Row indices of final totals to exclude if included
 
     Returns
-    -------------- 
-    Excel files with selected (confirmed) transcribed data -> in new format 
-    Timeseries plot of max, min and avg temperature (confirmed) at particular station
+    --------------
+    merged_df : pandas.DataFrame
+        A DataFrame containing validated and cleaned daily temperature data with the following columns:
+        - "Year": Year of the record.
+        - "Month": Month of the record.
+        - "Day": Day of the record.
+        - "Max_Temperature": Maximum temperature (validated or NaN if invalid/missing).
+        - "Min_Temperature": Minimum temperature (validated or NaN if invalid/missing).
+        - "Avg_Temperature": Average temperature (validated or NaN if invalid/missing).
+
     
     '''
 
@@ -199,67 +228,6 @@ def select_and_convert_postprocessed_data(filepath, date_column, columns_to_chec
         # Drop the temporary 'std_diff' column
         merged_df.drop(columns=['std_diff'], inplace=True)
 
-    # # List to hold all data
-    # data = [] # All the variables
-
-    # total_transcribed_cells = 0
-
-    # # Rows to exclude. Adjust these according to your specific sheet
-    # excluded_rows = [1, 2, 3, 9, 10, 16, 17, 23, 24, 30, 31, 37, 38, 45, 46, 47, 48] # These include titles or 5/6 day totals and averages.
-
-    # # Iterate over all files in the folder
-    # # Extract year and month from filename
-    # year, month = extract_date_from_filename(input_folder_path)
-    # if year and month:
-    #     workbook = openpyxl.load_workbook(input_folder_path)
-    #     worksheet = workbook.active
-
-    #     # Extract data from rows and columns, excluding specific rows.  
-    #     for row_num in range(4, worksheet.max_row + 1): #Here this represents Max, Min and Average Temperatures
-    #         if row_num not in excluded_rows: 
-    #             day_cell = worksheet.cell(row=row_num, column=2)  # Assuming the day is in the first column
-    #             max_temperature_cell = worksheet.cell(row=row_num, column=4)  # Column for Max Temperature
-    #             min_temperature_cell = worksheet.cell(row=row_num, column=5)  # Column for Min Temperature
-    #             average_temperature_cell = worksheet.cell(row=row_num, column=6)  # Column for Avg Temperature
-                
-    #             # Count the total transcribed values, including even the non-confirmed (GREEN) ones
-    #             total_transcribed_cells += sum(cell.value is not None for cell in [max_temperature_cell, min_temperature_cell, average_temperature_cell])
-
-    #             if day_cell.value :
-    #                 day = int(day_cell.value)
-    #                 max_temperature = max_temperature_cell.value if is_highlighted_green(max_temperature_cell, 'FF6DCD57') else 'NaN'
-    #                 min_temperature = min_temperature_cell.value if is_highlighted_green(min_temperature_cell, 'FF6DCD57') else 'NaN'
-    #                 average_temperature = average_temperature_cell.value if is_highlighted_green(average_temperature_cell, 'FF6DCD57') else 'NaN'
-
-    #                 data.append([year, month, day, max_temperature, min_temperature, average_temperature])
-
-    # # Create a DataFrame from the data
-    # df = pd.DataFrame(data, columns=["Year", "Month", "Day", "Max_Temperature", "Min_Temperature", "Avg_Temperature"])
-
-    # # Generate a complete date range for each year and month combination
-    # years_months = df[['Year', 'Month']].drop_duplicates()
-    # complete_data = []
-
-    # for _, row in years_months.iterrows():
-    #     year = row['Year']
-    #     month = row['Month']
-    #     num_days = pd.Period(f'{year}-{month}').days_in_month
-    #     for day in range(1, num_days + 1):
-    #         complete_data.append([year, month, day])
-
-    # complete_df = pd.DataFrame(complete_data, columns=["Year", "Month", "Day"])
-
-    # # Merge the complete date range with the extracted data
-    # merged_df = pd.merge(complete_df, df, on=["Year", "Month", "Day"])
-
-    # # Fill missing temperatures with a placeholder value (e.g., NaN or a specific value)
-    # # For combined sheet
-    # merged_df['Max_Temperature'] = merged_df['Max_Temperature'].fillna('NaN')  # Since this is temperature, missing vales cannot be zero (0)
-    # merged_df['Min_Temperature'] = merged_df['Min_Temperature'].fillna('NaN')
-    # merged_df['Avg_Temperature'] = merged_df['Avg_Temperature'].fillna('NaN')
-    
-    # # Sort DataFrame by Year, Month, Day
-    # merged_df = merged_df.sort_values(by=['Year', 'Month', 'Day'])
 
     print(f"Total automatically transcribed Cells: {total_transcribed_cells}")
 
@@ -268,15 +236,39 @@ def select_and_convert_postprocessed_data(filepath, date_column, columns_to_chec
 
 def select_and_convert_manually_transcribed_data(filepath, date_column, columns_to_check, header_rows, multi_day_totals, multi_day_averages, excluded_rows, additional_excluded_rows, final_totals_rows):
 
-    ''' Selects the confirmed data (from the quality control) and converts the excel file to a format ready to be converted to the Station Exchange Format
+    ''' 
+    Processes and selects manually transcribed meteorological data for analysis and conversion to a standardized format.
+
+    This function reads an Excel file containing manually transcribed meteorological observations, selects relevant 
+    data columns, excludes rows as specified, and generates a complete time series. Missing values are handled, 
+    and the data is returned as a structured DataFrame, ready for conversion to the Station Exchange Format (SEF).
+
     Parameters
-    --------------   
-    filepath: path of manually transcribed data sheet (file)
+    ----------
+    filepath : str
+        Path to the manually transcribed data sheet (Excel file).
+    date_column : str
+        Column letter representing the day/date of observation (e.g., 'B').
+    columns_to_check : list of str
+        List of column letters to extract (e.g., ['D', 'E', 'F'] for Max, Min, and Average temperatures).
+    header_rows : int
+        Number of rows at the top of the sheet used as headers (not part of the data).
+    multi_day_totals : bool
+        Indicates whether the sheet contains multi-day totals that should be excluded.
+    multi_day_averages : bool
+        Indicates whether the sheet contains multi-day averages that should be excluded.
+    excluded_rows : list of int
+        Row indices to exclude from the processing (e.g., rows with multi-day totals).
+    additional_excluded_rows : list of int
+        Additional rows to exclude if multi-day averages are present.
+    final_totals_rows : list of int
+        Rows containing final totals to exclude if no multi-day totals are present.
 
     Returns
-    -------------- 
-    Excel files with selected (confirmed) transcribed data -> in new format 
-    Timeseries plot of max, min and avg temperature (confirmed) at particular station
+    -------
+    pandas.DataFrame
+        A DataFrame containing the processed data with columns for year, month, day, 
+        maximum temperature, minimum temperature, and average temperature.
     
     '''
 
@@ -367,155 +359,40 @@ def select_and_convert_manually_transcribed_data(filepath, date_column, columns_
     for column in ["Max_Temperature", "Min_Temperature", "Avg_Temperature"]: # Since this is temperature, missing vales cannot be zero (0)
         merged_df[column] = merged_df[column].fillna(np.nan)
     
-    # # Convert temperature columns to numeric, coerce errors to NaN.
-    # merged_df['Max_Temperature'] = pd.to_numeric(merged_df['Max_Temperature'], errors='coerce')
-    # merged_df['Min_Temperature'] = pd.to_numeric(merged_df['Min_Temperature'], errors='coerce')
-    # merged_df['Avg_Temperature'] = pd.to_numeric(merged_df['Avg_Temperature'], errors='coerce')
 
     # Sort DataFrame by Year, Month, Day
     merged_df = merged_df.sort_values(by=['Year', 'Month', 'Day'])
-    # # List to hold all data
-    # data = [] # All the variables
-
-    # # Rows to exclude. Adjust these according to your specific sheet
-    # excluded_rows = [1, 2, 3, 9, 10, 16, 17, 23, 24, 30, 31, 37, 38, 45, 46, 47, 48] # These include titles or 5/6 day totals and averages.
-
-    # # Iterate over all files in the folder
-    # # Extract year and month from filename
-    # year, month = extract_date_from_filename(input_folder_path)
-    # if year and month:
-    #     workbook = openpyxl.load_workbook(input_folder_path)
-    #     worksheet = workbook.active
-
-    #     # Extract data from rows and columns, excluding specific rows.  
-    #     for row_num in range(4, worksheet.max_row + 1): #Here this represents Max, Min and Average Temperatures
-    #         if row_num not in excluded_rows: 
-    #             day_cell = worksheet.cell(row=row_num, column=2)  # Assuming the day is in the first column
-    #             max_temperature_cell = worksheet.cell(row=row_num, column=4)  # Column for Max Temperature
-    #             min_temperature_cell = worksheet.cell(row=row_num, column=5)  # Column for Min Temperature
-    #             average_temperature_cell = worksheet.cell(row=row_num, column=6)  # Column for Avg Temperature
-
-
-    #             if day_cell.value :
-    #                 day = int(day_cell.value)
-    #                 max_temperature = max_temperature_cell.value 
-    #                 min_temperature = min_temperature_cell.value 
-    #                 average_temperature = average_temperature_cell.value 
-                    
-    #                 data.append([year, month, day, max_temperature, min_temperature, average_temperature])
-
-    # # Create a DataFrame from the data
-    # df = pd.DataFrame(data, columns=["Year", "Month", "Day", "Max_Temperature", "Min_Temperature", "Avg_Temperature"])
-
-    # # Generate a complete date range for each year and month combination
-    # years_months = df[['Year', 'Month']].drop_duplicates()
-    # complete_data = []
-
-    # for _, row in years_months.iterrows():
-    #     year = row['Year']
-    #     month = row['Month']
-    #     num_days = pd.Period(f'{year}-{month}').days_in_month
-    #     for day in range(1, num_days + 1):
-    #         complete_data.append([year, month, day])
-
-    # complete_df = pd.DataFrame(complete_data, columns=["Year", "Month", "Day"])
-
-    # # Merge the complete date range with the extracted data
-    # merged_df = pd.merge(complete_df, df, on=["Year", "Month", "Day"])
-
-    # # Fill missing temperatures with a placeholder value (e.g., NaN or a specific value)
-    # # For combined sheet
-    # merged_df['Max_Temperature'] = merged_df['Max_Temperature'].fillna('NaN')  # Since this is temperature, missing vales cannot be zero (0)
-    # merged_df['Min_Temperature'] = merged_df['Min_Temperature'].fillna('NaN')
-    # merged_df['Avg_Temperature'] = merged_df['Avg_Temperature'].fillna('NaN')
-    
-    # # Sort DataFrame by Year, Month, Day
-    # merged_df = merged_df.sort_values(by=['Year', 'Month', 'Day'])
 
     print(f"Total manually transcribed Cells: {total_transcribed_cells}")
 
     return merged_df
 
-# def compare_dataframes(df1, df2, uncertainty_margin):
-#     """
-#     Compare temperature data between two dataframes and calculate the accuracy percentage.
-
-#     This function compares temperature values from two dataframes, typically one containing manually transcribed data and the other containing post-processed data. 
-#     It calculates how closely the values match within a specified uncertainty margin, providing an accuracy percentage as a result.
-
-#     Parameters
-#     --------------
-#     df1: pandas.DataFrame
-#         The first dataframe, usually containing manually transcribed data. It must include columns for 'Year', 'Month', 'Day', and temperature values ('Max_Temperature', 'Min_Temperature', 'Avg_Temperature').
-#     df2: pandas.DataFrame
-#         The second dataframe, typically containing post-processed data. It should have the same structure and columns as df1.
-#     uncertainty_margin: float, optional
-#         The allowable difference between values in the two dataframes for them to be considered a match. The default is 0.2.
-
-#     Returns
-#     --------------
-#     float
-#         The accuracy percentage, indicating the proportion of cells in the two dataframes that match within the specified uncertainty margin.
-#     """
-    
-#     total_highlighted_cells = 0
-#     accurate_matches = 0
-
-#     # Ensure the dataframes are aligned on the same date
-#     merged_df = pd.merge(df1, df2, on=['Year', 'Month', 'Day'], suffixes=('_manual', '_post'))
-
-#     # Convert temperature columns to numeric, coercing errors to NaN
-#     for col in ['Max_Temperature', 'Min_Temperature', 'Avg_Temperature']:
-#         merged_df[col + '_manual'] = pd.to_numeric(merged_df[col + '_manual'], errors='coerce')
-#         merged_df[col + '_post'] = pd.to_numeric(merged_df[col + '_post'], errors='coerce')
-
-#     # Iterate through the relevant columns to compare values
-#     for col in ['Max_Temperature', 'Min_Temperature', 'Avg_Temperature']:
-#         col_manual = col + '_manual'
-#         col_post = col + '_post'
-
-#         for i in range(len(merged_df)):
-#             if not pd.isna(merged_df[col_manual].iloc[i]) and not pd.isna(merged_df[col_post].iloc[i]):
-#                 total_highlighted_cells += 1
-#                 if abs(merged_df[col_manual].iloc[i] - merged_df[col_post].iloc[i]) <= uncertainty_margin:
-#                     accurate_matches += 1
-
-#     if total_highlighted_cells == 0:
-#         accuracy_percentage = 0.0
-#     else:
-#         accuracy_percentage = (accurate_matches / total_highlighted_cells) * 100
-
-    
-#     print(f"Total Highlighted Cells: {total_highlighted_cells}")
-#     print(f"Accuracy Percentage: {accuracy_percentage:.2f}%")
-
-#     return accuracy_percentage
-
 
 def compare_dataframes(df1, df2, uncertainty_margin): 
     """
-    Compare temperature data between two dataframes and calculate the accuracy percentage and mean absolute error (MAE).
+    Compare temperature data between two dataframes and calculate accuracy percentage and mean absolute error (MAE).
 
-    This function compares temperature values from two dataframes, typically one containing manually transcribed data 
-    and the other containing post-processed data. It calculates how closely the values match within a specified 
-    uncertainty margin, providing an accuracy percentage as a result, and also calculates the mean absolute error.
+    This function evaluates the similarity between temperature values in two dataframes, typically one containing 
+    manually transcribed data and the other containing automatically transcribed post-processed data. It calculates the percentage of values 
+    that fall within a specified uncertainty margin and computes the mean absolute error (MAE) for the compared data.
 
     Parameters
-    --------------
-    df1: pandas.DataFrame
-        The first dataframe, usually containing manually transcribed data. It must include columns for 'Year', 'Month', 'Day', 
-        and temperature values ('Max_Temperature', 'Min_Temperature', 'Avg_Temperature').
-    df2: pandas.DataFrame
-        The second dataframe, typically containing post-processed data. It should have the same structure and columns as df1.
-    uncertainty_margin: float, optional
-        The allowable difference between values in the two dataframes for them to be considered a match. The default is 0.2.
+    ----------
+    df1 : pandas.DataFrame
+        The first dataframe, generally containing manually transcribed data. It should have columns for 'Year', 
+        'Month', 'Day', and temperature variables ('Max_Temperature', 'Min_Temperature', 'Avg_Temperature').
+    df2 : pandas.DataFrame
+        The second dataframe, typically containing automatically transcribed data. It must match 
+        the structure and columns of df1.
+    uncertainty_margin : float, optional
+        The allowable difference between corresponding values in the two dataframes for them to be considered a match. 
 
     Returns
-    --------------
+    -------
     tuple
         A tuple containing:
-        - accuracy_percentage: float
-        - mae: float (mean absolute error)
+        - accuracy_percentage (float): The percentage of values that fall within the uncertainty margin.
+        - mae (float): The mean absolute error of the compared values.
     """
     
     total_highlighted_cells = 0
@@ -560,136 +437,39 @@ def compare_dataframes(df1, df2, uncertainty_margin):
     return accuracy_percentage, mae
 
 
-
-
-# def plot_comparison(manual_df, post_processed_df, output_folder_path, station, post_file, accuracy_percentage, uncertainty_margin):
-#     """
-#     Plot a comparison between manually transcribed data and post-processed data, including confidence intervals.
-
-#     This function generates a visual comparison of daily maximum, minimum, and average temperatures between manually transcribed data and post-processed data for a specific station. 
-#     The comparison includes plotting the post-processed data with confidence intervals and overlaying the manually transcribed data for validation purposes.
-
-#     Parameters
-#     --------------
-#     manual_df: pandas.DataFrame
-#         The dataframe containing the manually transcribed temperature data. It should include columns for 'Year', 'Month', 'Day', and the respective temperature values.
-#     post_processed_df: pandas.DataFrame
-#         The dataframe containing the post-processed temperature data. It should include columns for 'Year', 'Month', 'Day', and the respective temperature values.
-#     output_folder_path: str
-#         The directory path where the generated plot will be saved.
-#     station: str
-#         The identifier or name of the station, used for labeling the plot and the output filename.
-#     accuracy_percentage: float
-#         The calculated accuracy percentage of the manually transcribed data compared to the post-processed data, displayed on the plot.
-
-#     Returns
-#     --------------
-#     None
-#         The function generates and saves a plot comparing the two datasets, displaying the accuracy percentage, and does not return any value.
-
-#     """
-
-
-#     # Ensure Date column exists in both dataframes
-#     manual_df['Date'] = pd.to_datetime(manual_df[['Year', 'Month', 'Day']])
-#     post_processed_df['Date'] = pd.to_datetime(post_processed_df[['Year', 'Month', 'Day']])
-    
-#     # Merge data on Date
-#     merged_df = pd.merge(post_processed_df, manual_df, on='Date', suffixes=('_post', '_manual'))
-    
-#     # Create a figure and axis for the plot
-#     fig, ax = plt.subplots(figsize=(12, 8))
-
-#     # Plot manually transcribed data as as points only with 'o' markers
-#     ax.plot(merged_df['Date'], merged_df['Max_Temperature_manual'], 'o', label='Max (Manually transcribed)', color='red')
-#     ax.plot(merged_df['Date'], merged_df['Min_Temperature_manual'], 'o', label='Min (Manually transcribed)', color='blue')
-#     ax.plot(merged_df['Date'], merged_df['Avg_Temperature_manual'], 'o', label='Avg (Manually transcribed)', color='orange')
-
-#     # Plot post-QA/QC data using MeteoSaver (Max, Min, Avg) as dotted lines ('--')
-#     ax.plot(merged_df['Date'], merged_df['Max_Temperature_post'], '--', label='Max (Automatically transcribed)', color='red')
-#     ax.plot(merged_df['Date'], merged_df['Min_Temperature_post'], '--', label='Min (Automatically transcribed)', color='blue')
-#     ax.plot(merged_df['Date'], merged_df['Avg_Temperature_post'], '--', label='Avg (Automatically transcribed)', color='orange')
-    
-#     # Fill uncertainty margins around post-QA/QC data
-#     ax.fill_between(merged_df['Date'], merged_df['Max_Temperature_post'] - uncertainty_margin, 
-#                     merged_df['Max_Temperature_post'] + uncertainty_margin, color='red', alpha=0.2)
-#     ax.fill_between(merged_df['Date'], merged_df['Min_Temperature_post'] - uncertainty_margin, 
-#                     merged_df['Min_Temperature_post'] + uncertainty_margin, color='blue', alpha=0.2)
-#     ax.fill_between(merged_df['Date'], merged_df['Avg_Temperature_post'] - uncertainty_margin, 
-#                     merged_df['Avg_Temperature_post'] + uncertainty_margin, color='orange', alpha=0.2)
-    
-#     # Set plot labels and title
-#     ax.set_xlabel('Date')
-#     ax.set_ylabel('Temperature (°C)')
-#     ax.set_title(f'Daily Max, Min, and Avg Temperatures at station {station}')
-
-#     # Adjust the y-axis limit to ensure the legend is above the plotted lines
-#     ylim = ax.get_ylim()
-#     y_max = max(ylim)
-#     legend_y_position = y_max + (y_max * 0.1)
-#     ax.set_ylim(ylim[0], legend_y_position)
-
-#     # Plot manually transcribed data as points with 'o' markers
-#     manual_handle = [
-#     Line2D([0], [0], marker='o', color='red', label='Max (Manually transcribed)', linestyle='None'),
-#     Line2D([0], [0], marker='o', color='blue', label='Min (Manually transcribed)', linestyle='None'),
-#     Line2D([0], [0], marker='o', color='orange', label='Avg (Manually transcribed)', linestyle='None')]
-
-#     # Create custom legend entries for automatically transcribed data + uncertainty
-#     custom_handle = [
-#     (Line2D([0], [0], linestyle='--', color='red', lw=2), Patch(facecolor='red', alpha=0.2)),
-#     (Line2D([0], [0], linestyle='--', color='blue', lw=2), Patch(facecolor='blue', alpha=0.2)),
-#     (Line2D([0], [0], linestyle='--', color='orange', lw=2), Patch(facecolor='orange', alpha=0.2))]
-
-#     # Combine the manual transcribed and automatically transcribed legend handles
-#     all_handles = custom_handle + manual_handle
-
-#     # Create custom labels
-#     labels = [
-#         'Max (Automatically transcribed)', 'Min (Automatically transcribed)', 'Avg (Automatically transcribed)', 'Max (Manually transcribed)', 'Min (Manually transcribed)', 'Avg (Manually transcribed)']
-
-#     # Set legend handles with custom lines for each temperature type
-#     ax.legend(handles=all_handles, labels=labels, fontsize='small', loc='upper right')
-        
-#     ax.grid(True)
-
-#     # Add accuracy percentage below the x-axis
-#     plt.figtext(0.5, 0.01, f'Accuracy Percentage: {accuracy_percentage:.1f}%', ha='center', fontsize=10, bbox={"facecolor":"orange", "alpha":0.5, "pad":5})
-    
-#     # Remove the '.xlsx' extension from the post_file to clean the filename
-#     cleaned_post_file_name = os.path.splitext(post_file)[0]
-
-#     # Save the plot
-#     plot_filename = os.path.join(output_folder_path, f'temperature_comparison_plot_{cleaned_post_file_name}.jpg')
-#     plt.savefig(plot_filename, format='jpg')
-#     plt.show()
-
-
-
 def plot_comparison(manual_df, post_processed_df, output_folder_path, station, post_file, accuracy_percentage_and_mean_absolute_error, uncertainty_margin):
     """
-    Plot a comparison between manually transcribed data and post-processed data, including confidence intervals.
+    Generate a comparison plot for daily temperature data from manually transcribed and post-processed datasets.
 
-    This function generates a visual comparison of daily maximum, minimum, and average temperatures between manually transcribed data and post-processed data for a specific station. 
-    The comparison includes plotting the post-processed data with confidence intervals and overlaying the manually transcribed data for validation purposes.
+    This function creates a time series plot comparing daily maximum, minimum, and average temperatures from two datasets:
+    manually transcribed data and automatically transcribed post-processed data. The post-processed data is displayed as solid markers, while the
+    manually transcribed data is visualized as lighter bands representing the uncertainty margin. The plot highlights 
+    the accuracy percentage and mean absolute error (MAE) between the datasets.
 
     Parameters
-    --------------
-    manual_df: pandas.DataFrame
-        The dataframe containing the manually transcribed temperature data. It should include columns for 'Year', 'Month', 'Day', and the respective temperature values.
-    post_processed_df: pandas.DataFrame
-        The dataframe containing the post-processed temperature data. It should include columns for 'Year', 'Month', 'Day', and the respective temperature values.
-    output_folder_path: str
-        The directory path where the generated plot will be saved.
-    station: str
-        The identifier or name of the station, used for labeling the plot and the output filename.
-    accuracy_percentage: float
-        The calculated accuracy percentage of the manually transcribed data compared to the post-processed data, displayed on the plot.
+    ----------
+    manual_df : pandas.DataFrame
+        Dataframe containing manually transcribed temperature data, with columns for 'Year', 'Month', 'Day', 
+        and temperature variables ('Max_Temperature', 'Min_Temperature', 'Avg_Temperature').
+    post_processed_df : pandas.DataFrame
+        Dataframe containing post-processed temperature data, with the same structure as `manual_df`.
+    output_folder_path : str
+        Path to the directory where the generated plot will be saved.
+    station : str
+        Name or identifier of the station (station number), used for labeling the plot and the output file.
+    post_file : str
+        Filename of the post-processed data file, used to generate a unique name for the saved plot.
+    accuracy_percentage_and_mean_absolute_error : tuple
+        A tuple containing the accuracy percentage (float) and mean absolute error (float) calculated from the 
+        comparison of the datasets.
+    uncertainty_margin : float
+        The uncertainty margin applied to the manually transcribed data to create the lighter bands in the plot.
 
     Returns
-    --------------
+    -------
     None
-        The function generates and saves a plot comparing the two datasets, displaying the accuracy percentage, and does not return any value.
+        This function saves the generated plot as an image file in the specified output directory and displays it.
+
 
     """
 
@@ -789,35 +569,47 @@ def plot_comparison(manual_df, post_processed_df, output_folder_path, station, p
 
 def validate(manually_transcribed_data_dir_station, postprocessed_data_dir_station, output_folder_path, station, date_column, columns_to_check, header_rows, multi_day_totals, multi_day_averages, excluded_rows, additional_excluded_rows, final_totals_rows, uncertainty_margin):
     """
-    Main function to validate and compare manually transcribed data with post-processed data, and generate corresponding plots.
+    Validate and compare manually transcribed data with post-processed data, generating accuracy metrics and visualizations.
 
-    This function compares manually transcribed temperature data with post-processed data files to ensure accuracy. 
-    It identifies matching files between the two datasets, processes them, and calculates the accuracy percentage. 
-    Finally, it generates comparison plots for each file pair.
+    This function performs validation by comparing manually transcribed meteorological data with automatically transcribed post-processed data. 
+    It matches corresponding files, processes the data, calculates accuracy metrics such as the accuracy percentage 
+    and mean absolute error (MAE), and generates time series plots for visual comparison.
 
     Parameters
-    --------------
-    manually_transcribed_data_dir: str
-        The directory path containing manually transcribed data files. These files should be named with the suffix '_manually_entered_temperatures'.
-    postprocessed_data_dir_station: str
-        The directory path containing post-processed data files. These files should be named with the suffix '_post_QA_QC'.
-    output_folder_path: str
-        The directory path where the output plots will be saved.
-    station: str
-        The station identifier or name used for labeling the output files.
+    ----------
+    manually_transcribed_data_dir_station : str
+        Directory containing manually transcribed data files. These files should include the suffix '_manually_entered_temperatures'.
+    postprocessed_data_dir_station : str
+        Directory containing post-processed data files, named with the suffix '_post_QA_QC'.
+    output_folder_path : str
+        Path where the generated plots will be saved.
+    station : str
+        Identifier or name of the station (station no.), used for labeling plots and output files.
+    date_column : str
+        The column name or letter indicating the date in the input files.
+    columns_to_check : list of str
+        List of column names or letters corresponding to maximum, minimum, and average temperatures.
+    header_rows : int
+        Number of header rows in the input files.
+    multi_day_totals : bool
+        Whether multi-day totals are present in the input files.
+    multi_day_averages : bool
+        Whether multi-day averages are present in the input files.
+    excluded_rows : list of int
+        Rows to exclude during processing, such as title rows or non-temperature rows.
+    additional_excluded_rows : list of int
+        Additional rows to exclude for multi-day totals and averages.
+    final_totals_rows : list of int
+        Rows containing final totals to exclude if multi-day totals are not included.
+    uncertainty_margin : float
+        Allowable difference between manually transcribed and post-processed values for validation.
 
     Returns
-    --------------
+    -------
     None
-        The function does not return any value. Instead, it processes the data, compares the files, and plots the two files timeseries
+        This function does not return a value but processes the data, calculates metrics, and generates plots.
 
-    Processing Steps
-    --------------
-    1. **File Matching:** The function identifies pairs of files from the manually transcribed and post-processed directories that correspond to each other based on their base names.
-    2. **Data Loading:** The corresponding data from the identified file pairs are loaded into dataframes.
-    3. **Data Conversion:** Temperature columns in the post-processed data are converted to numeric types, with non-convertible values coerced to NaN.
-    4. **Accuracy Calculation:** The manually transcribed data is compared with the post-processed data to calculate an accuracy percentage.
-    5. **Plot Generation:** Comparison plots are generated, providing a visual assessment of the data validation.
+
     """
 
     manually_transcribed_files = os.listdir(manually_transcribed_data_dir_station)
