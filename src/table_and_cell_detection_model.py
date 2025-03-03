@@ -266,7 +266,7 @@ def add_missing_rois(sorted_contours, space_threshold, width_threshold, max_heig
             # Calculate the y position for the new contour
             new_y = prev_box[1] + prev_box[3] + (space_between - max_height_per_box) // 2
             new_height = max_height_per_box
-            new_box = (prev_box[0], new_y, width_threshold, new_height)
+            new_box = (prev_box[0], new_y, width_threshold+50, new_height) # extra 50 to esnure full capture of cell
 
             # Check for neighboring boxes within the same row
             has_left_neighbor = any(abs(prev_box[0] - b[0]) <= width_threshold for b in column_boxes)
@@ -284,7 +284,68 @@ def add_missing_rois(sorted_contours, space_threshold, width_threshold, max_heig
     
     return new_contours
 
+# --- Noise Reduction ---
+def reduce_noise(image):
+    """Apply morphological operations to reduce small dots and noise."""
+    kernel = np.ones((2,2), np.uint8)  # Adjust the kernel size as needed
+    return cv2.morphologyEx(image, cv2.MORPH_OPEN, kernel, iterations=1)
 
+
+
+# def remove_vertical_lines(image):
+#     """Detect and remove only long vertical lines while keeping handwritten text intact."""
+#     # Step 1: Convert to binary (adaptive thresholding)
+#     binary = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 15, 8)
+
+#     # Step 2: Detect vertical lines using morphology
+#     vertical_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 50))  # Tall kernel to detect vertical lines
+#     vertical_mask = cv2.morphologyEx(binary, cv2.MORPH_OPEN, vertical_kernel, iterations=1)
+
+#     # Step 3: Subtract detected vertical lines from the binary image
+#     no_lines = cv2.bitwise_and(binary, cv2.bitwise_not(vertical_mask))
+
+#     # Step 4: Restore broken text by slightly dilating it
+#     text_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 2))
+#     restored_text = cv2.dilate(no_lines, text_kernel, iterations=1)
+
+#     # Step 5: Uninvert the image to maintain original black text on white background
+#     final_output = cv2.bitwise_not(restored_text)
+
+#     return final_output
+
+
+def remove_vertical_lines(image):
+    """Detect and remove only long vertical lines and small dots while keeping handwritten text intact."""
+    # Step 1: Convert to binary (adaptive thresholding)
+    binary = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 15, 8)
+
+    # Step 2: Detect vertical lines using morphology
+    vertical_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 50))  # Tall kernel to detect vertical lines
+    vertical_mask = cv2.morphologyEx(binary, cv2.MORPH_OPEN, vertical_kernel, iterations=1)
+
+    # Step 3: Subtract detected vertical lines from the binary image
+    no_lines = cv2.bitwise_and(binary, cv2.bitwise_not(vertical_mask))
+
+    # Step 4: Find contours (text + unwanted dots)
+    contours, _ = cv2.findContours(no_lines, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Step 5: Remove small dots based on area threshold
+    filtered_image = no_lines.copy()
+    # for contour in contours:
+    #     x, y, w, h = cv2.boundingRect(contour)
+        
+    #     # Define size threshold: Remove very small dots (too small to be text)
+    #     if w * h < 70:  # Adjust based on dataset
+    #         cv2.drawContours(filtered_image, [contour], -1, (0, 0, 0), thickness=cv2.FILLED)
+
+    # Step 6: Apply **vertical-only dilation** to repair text (without making it bold)
+    text_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 2))  # Expands only vertically
+    restored_text = cv2.dilate(filtered_image, text_kernel, iterations=1)
+
+    # Step 7: Uninvert the image to maintain black text on a white background
+    final_output = cv2.bitwise_not(restored_text)
+
+    return final_output
 
 def table_and_cell_detection(image_in_grayscale, binarized_image, original_image, station, month_filename, transient_transcription_output_dir, clip_up, clip_down, clip_left, clip_right, max_table_width, max_table_height, min_cell_width_threshold, min_cell_height_threshold, max_cell_width_threshold, max_cell_height_threshold, space_height_threshold, space_width_threshold, max_cell_height_per_box, no_of_rows, no_of_columns):
     '''
@@ -391,8 +452,8 @@ def table_and_cell_detection(image_in_grayscale, binarized_image, original_image
     if largest_contour is not None:
         x, y, w, h = cv2.boundingRect(largest_contour)
         cv2.rectangle(binarized_image, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        full_detected_table_with_labels = binarized_image[y:y + h, x:x + w] 
-        
+        full_detected_table_with_labels = binarized_image[y:y + h, x:x + w]
+
         # Check if the table image dimensions exceed the thresholds to avoid sheets without proper table detection. This is customizable for different sheets. In our case, we had one type of sheets and an approximate uniform sheet dimensions
         height, width = full_detected_table_with_labels.shape[:2]
         if width <= max_table_width and height <= max_table_height: # These average table dimensions (in pixels; ~3900x3600) were determined from our sample sheets in the dataset given we followed similar protocol to digitize (image/scan) the data sheets.
@@ -441,6 +502,14 @@ def table_and_cell_detection(image_in_grayscale, binarized_image, original_image
     else:
         table_img_bin = table
 
+    # # Apply noise reduction
+    # table_img_bin = reduce_noise(table_img_bin)
+
+    # Remove only long vertical lines while keeping text intact
+    table_img_bin = remove_vertical_lines(table_img_bin)
+
+
+
     # Save the binary image for use later in detecting text
     save_dir = os.path.join(transient_transcription_output_dir, station)
     os.makedirs(save_dir, exist_ok=True)  # Ensure the directory exists
@@ -454,7 +523,7 @@ def table_and_cell_detection(image_in_grayscale, binarized_image, original_image
     eroded_image = cv2.erode(img_bin, vertical_kernel, iterations=1)
     vertical_lines = cv2.dilate(eroded_image, vertical_kernel, iterations=5)
     # Detect the horizontal lines in the image
-    hor_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (np.array(table).shape[1]//20, 1)) # The '//20' divides the width of the array (table) by 20, likely to obtain a fraction of the width for the structuring element.
+    hor_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (np.array(table).shape[1]//60, 1)) # The '//20' divides the width of the array (table) by 20, likely to obtain a fraction of the width for the structuring element.
     eroded_image= cv2.erode(img_bin, hor_kernel, iterations=1)
     horizontal_lines = cv2.dilate(eroded_image, hor_kernel, iterations=5)
     # Blending the imaegs with the vertical lines and the horizontal lines 
@@ -464,40 +533,505 @@ def table_and_cell_detection(image_in_grayscale, binarized_image, original_image
     # Remove the lines from the image (table)
     image_without_lines = cv2.subtract(img_bin, combined_image_dilated)
     # Remove smaller 'still-visible' lines through noise removal
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
     image_without_lines_noise_removed = cv2.erode(image_without_lines, kernel, iterations=1)
     image_without_lines_noise_removed = cv2.dilate(image_without_lines_noise_removed, kernel, iterations=1)
-    # Convert words into blobs using dilation
-    #kernel_to_remove_gaps_between_words = np.ones((5, 5), np.uint8)  # Larger kernel to bridge gaps better
-    kernel_to_remove_gaps_between_words = np.array([
-            [1,1,1,1,1, 1],
-            [1,1,1,1,1, 1]])
-    image_with_word_blobs = cv2.dilate(image_without_lines_noise_removed, kernel_to_remove_gaps_between_words, iterations=5) # was 5 iterations previously
+    
+    # Detecting the dotted lines using horizontal line detection and erosion. ### ADDITIONAL STEP: This is because the original images ahve dotted horizontal lines which cvan still be detected after the first removal of main (undotted) horizontal lines
+    # hor_kernel_2 = cv2.getStructuringElement(cv2.MORPH_RECT, (np.array(image_without_lines_noise_removed).shape[1]//100, 1))
+    # image_3 = cv2.erode(image_without_lines_noise_removed, hor_kernel_2, iterations=1)
+    # horizontal_lines_2 = cv2.dilate(image_3, hor_kernel_2, iterations=5)
+    # # Removing the dotted liens by substracting them from the original image 
+    # image_without_lines_2 = cv2.subtract(image_without_lines_noise_removed, horizontal_lines_2)
+
+    # #**Removing Remaining Isolated Small Dots (Noise)**
+    # dot_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (4,4))  # Detects small noise blobs
+    # image_no_dots = cv2.morphologyEx(image_without_lines_noise_removed, cv2.MORPH_OPEN, dot_kernel, iterations=1)
+
+    # plt.imshow(image_no_dots, cmap = 'gray') # figure showing detected table image with horizintal and vertical lines removed.
+    # plt.show() 
+
+
+
+
+
+
+
+
+
+
+    # # Step 3: **Using Connected Component Filtering to Remove Tiny Blobs**
+    # num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(image_without_lines_noise_removed, connectivity=8)
+
+    # # Create a mask to keep only large components (text)
+    # filtered_image = np.zeros_like(image_without_lines_noise_removed)
+    # # for i in range(1, num_labels):  # Ignore background (label 0)
+    # #     if stats[i, cv2.CC_STAT_AREA] > 100:  # Adjust threshold to remove small dots/noise. 50 was good
+    # #         filtered_image[labels == i] = 255  # Keep large components (text)
+
+    # # Set aspect ratio threshold for horizontal noise (adjust as needed)
+    # ASPECT_RATIO_THRESHOLD = 4  # If Width / Height > 5, it's considered a horizontal dot chain
+    # HEIGHT_THRESHOLD = 28  # Remove any blobs with height less than 28 pixels
+
+    # for i in range(1, num_labels):  # Ignore background (label 0)
+    #     x, y, w, h, area = stats[i, cv2.CC_STAT_LEFT], stats[i, cv2.CC_STAT_TOP], stats[i, cv2.CC_STAT_WIDTH], stats[i, cv2.CC_STAT_HEIGHT], stats[i, cv2.CC_STAT_AREA]
+        
+    #     aspect_ratio = w / h  # Compute aspect ratio
+
+    #     # Keep components that are NOT horizontal noise
+    #     if area > 100 and aspect_ratio < ASPECT_RATIO_THRESHOLD and h > HEIGHT_THRESHOLD:  
+    #         filtered_image[labels == i] = 255  # Keep text
+
+    # plt.imshow(filtered_image, cmap = 'gray') # figure showing detected table image with horizintal and vertical lines removed.
+    # plt.show() 
+
+
+
+    # # Step 0: Light dilation to preserve thin strokes
+    # kernel_preserve_digits = np.ones((2,2), np.uint8)  
+    # image_without_lines_noise_removed = cv2.dilate(image_without_lines_noise_removed, kernel_preserve_digits, iterations=1)
+
+
+
+
+
+
+
+    # # Step 1: Detect all connected components
+    # num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(image_without_lines_noise_removed, connectivity=8)
+
+    # # Create a mask to keep only valid text components
+    # filtered_image = np.zeros_like(image_without_lines_noise_removed)
+
+    # # Set thresholds
+    # ASPECT_RATIO_THRESHOLD = 4  # If Width / Height > 4, it's considered horizontal noise
+    # HEIGHT_THRESHOLD = 5  # Remove any blobs with height less than this. was 28 in inital test
+    # PROXIMITY_THRESHOLD = 5  # Maximum distance (in pixels) to consider a dot "close" to a number
+
+    # # Step 2: Identify large text components (potential numbers)
+    # text_components = []
+    # for i in range(1, num_labels):
+    #     x, y, w, h, area = stats[i, cv2.CC_STAT_LEFT], stats[i, cv2.CC_STAT_TOP], stats[i, cv2.CC_STAT_WIDTH], stats[i, cv2.CC_STAT_HEIGHT], stats[i, cv2.CC_STAT_AREA]
+        
+    #     aspect_ratio = w / h  # Compute aspect ratio
+        
+    #     # Keep only real text (numbers) as reference components
+    #     if area > 100 and aspect_ratio < ASPECT_RATIO_THRESHOLD and h > HEIGHT_THRESHOLD:
+    #         text_components.append((x, y, w, h))
+    #         filtered_image[labels == i] = 255  # Keep text
+
+    # # Step 3: Process small dots and keep only those near text
+    # for i in range(1, num_labels):
+    #     x, y, w, h, area = stats[i, cv2.CC_STAT_LEFT], stats[i, cv2.CC_STAT_TOP], stats[i, cv2.CC_STAT_WIDTH], stats[i, cv2.CC_STAT_HEIGHT], stats[i, cv2.CC_STAT_AREA]
+        
+    #     # Skip already kept text components
+    #     if area > 100 and aspect_ratio < ASPECT_RATIO_THRESHOLD and h > HEIGHT_THRESHOLD:
+    #         continue
+        
+    #     # Check if this small dot is close to any number
+    #     keep_dot = False
+    #     for tx, ty, tw, th in text_components:
+    #         # Compute distance from dot center to the number bounding box
+    #         dot_center_x, dot_center_y = x + w // 2, y + h // 2
+    #         if (tx - PROXIMITY_THRESHOLD <= dot_center_x <= tx + tw + PROXIMITY_THRESHOLD and
+    #             ty - PROXIMITY_THRESHOLD <= dot_center_y <= ty + th + PROXIMITY_THRESHOLD):
+    #             keep_dot = True
+    #             break  # No need to check other numbers
+
+    #     if keep_dot:
+    #         filtered_image[labels == i] = 255  # Keep dots near numbers
+
+    
+    # plt.imshow(filtered_image, cmap = 'gray') # figure showing detected table image with horizintal and vertical lines removed.
+    # plt.title('filtered image- no dots - no lines')
+    # plt.show() 
+
+
+
+
+
+
+    # Step 1: Detect all connected components
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(image_without_lines_noise_removed, connectivity=8)
+
+    # Create a mask to keep only valid text components
+    filtered_image = np.zeros_like(image_without_lines_noise_removed)
+
+    # Set thresholds
+    ASPECT_RATIO_THRESHOLD = 4  # If Width / Height > 4, it's considered horizontal noise
+    HEIGHT_THRESHOLD = 5  # Remove any blobs with height less than this
+    PROXIMITY_THRESHOLD = 5  # Maximum distance (in pixels) to consider a dot "close" to a number
+
+    # Store y-coordinates and x-limits of horizontal dots **ONLY NEAR TEXT**
+    horizontal_lines = []
+
+    # Step 2: Identify large text components (potential numbers)
+    text_components = []
+    for i in range(1, num_labels):
+        x, y, w, h, area = stats[i, cv2.CC_STAT_LEFT], stats[i, cv2.CC_STAT_TOP], stats[i, cv2.CC_STAT_WIDTH], stats[i, cv2.CC_STAT_HEIGHT], stats[i, cv2.CC_STAT_AREA]
+
+        aspect_ratio = w / h  # Compute aspect ratio
+
+        # Keep only real text (numbers) as reference components
+        if area > 100 and aspect_ratio < ASPECT_RATIO_THRESHOLD and h > HEIGHT_THRESHOLD:
+            text_components.append((x, y, w, h))
+            filtered_image[labels == i] = 255  # Keep text
+
+    plt.imshow(filtered_image, cmap="gray")
+    plt.title("First Filtered Image - No Dots - No Lines")
+    plt.show()
+
+    # Step 3: Process small dots and keep only those near text
+    for i in range(1, num_labels):
+        x, y, w, h, area = stats[i, cv2.CC_STAT_LEFT], stats[i, cv2.CC_STAT_TOP], stats[i, cv2.CC_STAT_WIDTH], stats[i, cv2.CC_STAT_HEIGHT], stats[i, cv2.CC_STAT_AREA]
+
+        # Skip already kept text components
+        if area > 100 and aspect_ratio < ASPECT_RATIO_THRESHOLD and h > HEIGHT_THRESHOLD:
+            continue  # Skip large text components
+
+        # Check if this small dot is close to any number
+        keep_dot = False
+        for tx, ty, tw, th in text_components:
+            # Compute distance from dot center to the number bounding box
+            dot_center_x, dot_center_y = x + w // 2, y + h // 2
+            if (tx - PROXIMITY_THRESHOLD <= dot_center_x <= tx + tw + PROXIMITY_THRESHOLD and
+                ty - PROXIMITY_THRESHOLD <= dot_center_y <= ty + th + PROXIMITY_THRESHOLD):
+                keep_dot = True
+                # Store the y-position and x-limits of dots near text
+                horizontal_lines.append((dot_center_y, x, x + w))  # (y-position, x_start, x_end)
+                break  # No need to check other numbers
+
+        if keep_dot:
+            filtered_image[labels == i] = 255  # Keep dots near numbers
+
+    plt.imshow(filtered_image, cmap="gray")
+    plt.title("Second Filtered Image - Only Dots Near Text - No Lines")
+    plt.show()
+
+    # **Step 4: Draw Horizontal Separation Lines Only Where Needed**
+    #image_with_lines = filtered_image.copy()
+
+    # for y, x_start, x_end in horizontal_lines:
+    #     cv2.line(filtered_image, (x_start, y), (x_end, y), 0, thickness=2)  # Use short lines only between detected dots
+
+    # plt.imshow(filtered_image, cmap="gray")
+    # plt.title("Image with Artificial Short Horizontal Lines for Row Separation")
+    # plt.show()
+
     
 
-    simple_kernel = np.ones((3,3), np.uint8)
-    image_with_word_blobs = cv2.dilate(image_with_word_blobs, simple_kernel, iterations=1)
-    # Detecting the dotted lines using horizontal line detection and erosion. ### ADDITIONAL STEP: This is because the original images ahve dotted horizontal lines which cvan still be detected after the first removal of main (undotted) horizontal lines
-    hor_kernel_2 = cv2.getStructuringElement(cv2.MORPH_RECT, (np.array(image_with_word_blobs).shape[1]//20, 1))
-    image_3 = cv2.erode(image_with_word_blobs, hor_kernel_2, iterations=1)
-    horizontal_lines_2 = cv2.dilate(image_3, hor_kernel_2, iterations=1)
-    # Removing the dotted liens by substracting them from the original image 
-    image_without_lines_2 = cv2.subtract(image_with_word_blobs, horizontal_lines_2)
+    # Step 2: Use **horizontal dilation** to merge digits within numbers, but prevent full merging
+    kernel_to_remove_gaps = np.ones((1, 6), np.uint8)  # Horizontal merging kernel
+    image_with_number_blobs = cv2.dilate(filtered_image, kernel_to_remove_gaps, iterations=5)  # Controlled dilation
+
+    # Step 3: Apply **morphological closing** to ensure numbers remain compact blobs
+    rect_kernel = np.ones((1, 3), np.uint8)   # was 3 initially. in prev step was 1
+    image_with_word_blobs = cv2.morphologyEx(image_with_number_blobs, cv2.MORPH_CLOSE, rect_kernel, iterations=1)
+
+
+    plt.imshow(image_with_word_blobs, cmap = 'gray') # figure showing detected table image with horizintal and vertical lines removed.
+    plt.title('horizontal dilation')
+    plt.show() 
+
+    # # Detecting the dotted lines using horizontal line detection and erosion. ### ADDITIONAL STEP: This is because the original images ahve dotted horizontal lines which cvan still be detected after the first removal of main (undotted) horizontal lines
+    # hor_kernel_2 = cv2.getStructuringElement(cv2.MORPH_RECT, (np.array(image_with_word_blobs).shape[1]//20, 1))   # was 20 originally. 
+    # image_3 = cv2.erode(image_with_word_blobs, hor_kernel_2, iterations=1) # had it at 2 originally
+    # horizontal_lines_2 = cv2.dilate(image_3, hor_kernel_2, iterations=1)
+    # # Removing the dotted liens by substracting them from the original image 
+    # image_with_word_blobs = cv2.subtract(image_with_word_blobs, horizontal_lines_2)
+
+    # plt.imshow(image_with_word_blobs, cmap = 'gray') # figure showing detected table image with horizintal and vertical lines removed.
+    # plt.show() 
+
+
+    # Define a horizontal erosion kernel
+    horizontal_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 6))  # (height, width) to break horizontal merges. had it at 1,5 initially 
+    # Apply erosion to break the connection between digits
+    image_with_word_blobs = cv2.erode(image_with_word_blobs, horizontal_kernel, iterations=2)  # Increase iterations if still connected. Had 2 iteratons initially
+    plt.imshow(image_with_word_blobs, cmap = 'gray') # figure showing detected table image with horizintal and vertical lines removed.
+    plt.title('applied horizontal_kernel')
+    plt.show() 
+
+
+    ##************REMOVE THIS***************
+    # # Define a vertical erosion kernel
+    # vertical_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 1))  # (width, height) to break horizontal merges. had it at 1,5 initially 
+    # # Apply erosion to break the connection between digits
+    # image_with_word_blobs = cv2.erode(image_with_word_blobs, vertical_kernel, iterations=2)  # Increase iterations if still connected. Had 2 iteratons initially
+    # plt.imshow(image_with_word_blobs, cmap = 'gray') # figure showing detected table image with horizintal and vertical lines removed.
+    # plt.title('applied vertical kernel')
+    # plt.show() 
+    ##************REMOVE THIS***************
+
+
+
+    ##************ PROBABLY REMOVE THIS***************
+    # # OPTIONAL: Apply light dilation to restore digit thickness
+    # image_with_word_blobs = cv2.dilate(image_with_word_blobs, np.ones((3, 1), np.uint8), iterations=2) # (height, width)
+    # plt.imshow(image_with_word_blobs, cmap = 'gray') 
+    # plt.title('final vertical dilation to increase height of blobs')
+    # plt.show() 
+    ##************REMOVE THIS***************
+
+
+
+
+
+
+
+    # # Find connected components
+    # num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(image_with_word_blobs, connectivity=8)
+
+    # # Create a mask for filtered output
+    # filtered_image = image_with_word_blobs.copy()
+
+    # # Define a vertical erosion kernel
+    # vertical_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 1))  # (height, width) to break vertical merges
+
+    # # **Loop Through Each Component and Apply More Erosion to Taller Blobs**
+    # for i in range(1, num_labels):  # Ignore background (label 0)
+    #     x, y, w, h = stats[i, cv2.CC_STAT_LEFT], stats[i, cv2.CC_STAT_TOP], stats[i, cv2.CC_STAT_WIDTH], stats[i, cv2.CC_STAT_HEIGHT]
+
+    #     # Check if blob is taller than expected
+    #     if h > max_cell_height_threshold:
+    #         erosion_iterations = 5  # Apply stronger vertical erosion to break stacked numbers
+    #     else:
+    #         erosion_iterations = 1
+
+    #     # Extract the region of interest (ROI) for erosion
+    #     roi = image_with_word_blobs[y:y+h, x:x+w]
+
+    #     # Apply vertical erosion only on the specific region
+    #     eroded_roi = cv2.erode(roi, vertical_kernel, iterations=erosion_iterations)
+
+    #     # Put the processed region back into the filtered image
+    #     filtered_image[y:y+h, x:x+w] = eroded_roi
+
+
+    # image_with_word_blobs = filtered_image
+    # plt.imshow(image_with_word_blobs, cmap = 'gray') 
+    # plt.title('all large vertical blobs joining different rows removed')
+    # plt.show() 
+
+
+
+    # Create a blank mask for horizontal lines
+    horizontal_line_mask = np.zeros_like(image_with_word_blobs)
+
+    # Draw **thin** horizontal lines at detected y-positions (but not subtracting yet)
+    for y, x_start, x_end in horizontal_lines:
+        cv2.line(horizontal_line_mask, (x_start - 15, y), (x_end + 15, y), 255, thickness=3)  # Initially very thin
+
+    # Show the initial thin line mask
+    plt.imshow(horizontal_line_mask, cmap="gray")
+    plt.title("Initial Thin Line Mask")
+    plt.show()
+
+    # # **Step 2: Dilate the horizontal lines to make them stronger**
+    # dilation_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (20, 2))  # Wider lines
+    # horizontal_line_mask = cv2.dilate(horizontal_line_mask, dilation_kernel, iterations=1)
+
+    # # Show the dilated horizontal line mask
+    # plt.imshow(horizontal_line_mask, cmap="gray")
+    # plt.title("Dilated Horizontal Line Mask")
+    # plt.show()
+
+    # **Step 3: Subtract the dilated lines from the filtered image**
+    image_with_word_blobs = cv2.subtract(image_with_word_blobs, horizontal_line_mask)
+
+    # Show the final image after subtraction
+    plt.imshow(image_with_word_blobs, cmap="gray")
+    plt.title("Final Image After Subtracting Horizontal Lines")
+    plt.show()
+
+
+
+    ####*********what if i did this step above now with (1,3) dilation. In otherwords in both direction
+    image_with_word_blobs = cv2.dilate(image_with_word_blobs, np.ones((1, 6), np.uint8), iterations=2) # (height, width) # initialy (1,3) and 1 iteration
+    plt.imshow(image_with_word_blobs, cmap = 'gray') 
+    plt.title('final horizontal dilation to increase width of blobs')
+    plt.show() 
+
+    # **Step 2: Apply Controlled Erosion to Fix Over-Merging**
+    erosion_kernel = np.ones((1, 3), np.uint8)  # Smaller horizontal erosion kernel
+    image_with_word_blobs = cv2.erode(image_with_word_blobs, erosion_kernel, iterations=1)  # Controlled shrinking
+
+    plt.imshow(image_with_word_blobs, cmap="gray")
+    plt.title("After Horizontal Erosion (Fix Over-Merging)")
+    plt.show()
+
+    # **Step 2: Find Wide Blobs That Need Stronger Erosion**
+    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(image_with_word_blobs, connectivity=8)
+
+    for i in range(1, num_labels):  # Ignore background (label 0)
+        x, y, w, h = stats[i, cv2.CC_STAT_LEFT], stats[i, cv2.CC_STAT_TOP], stats[i, cv2.CC_STAT_WIDTH], stats[i, cv2.CC_STAT_HEIGHT]
+        
+        if w > 200:  # **If the blob is too wide, apply stronger erosion**
+            erosion_kernel = np.ones((3, 10), np.uint8)  # Slightly stronger erosion for wide blobs
+            roi = image_with_word_blobs[y:y+h, x:x+w]
+            eroded_roi = cv2.erode(roi, erosion_kernel, iterations=3)  # More iterations for wider blobs'
+            
+            # **Apply vertical recovery dilation to restore eroded thickness**
+            dilation_kernel = np.ones((2, 1), np.uint8)  # Small dilation to restore height
+            recovered_roi = cv2.dilate(eroded_roi, dilation_kernel, iterations=3)  # Restore vertical thickness
+            
+            image_with_word_blobs[y:y+h, x:x+w] = recovered_roi  # Replace only this region
+        
+        if h > 50: # ** If the blob is too tall, apply stronger erosion along the horizontal dimension**
+            # erosion_kernel_vert = np.ones((min(h // 15, 12), 6), np.uint8)  # Adaptive vertical erosion # Initially had this: np.ones((min(h // 20, 12), 3), np.uint8)
+            erosion_kernel_vert = np.ones((1, 13), np.uint8)  # Slightly stronger erosion for wide blobs # Imitially had (10,3), BUT (1,10) improved it
+            roi = image_with_word_blobs[y:y+h, x:x+w]
+            eroded_roi = cv2.erode(roi, erosion_kernel_vert, iterations=3)  
+            
+            # **Restore horizontal thickness**
+            dilation_kernel_vert = np.ones((1, 6), np.uint8)  # initially had (1,6)
+            recovered_roi = cv2.dilate(eroded_roi, dilation_kernel_vert, iterations=3)  
+
+            image_with_word_blobs[y:y+h, x:x+w] = recovered_roi 
+
+    
+    plt.imshow(image_with_word_blobs, cmap="gray")
+    plt.title("After Adaptive Erosion (Fixing Over-Merging)")
+    plt.show()
+
+    
+    
+    
+    
+    
+    
+ 
+
+
+
+
+
+
+# ****TO BE DELETED. METHOD DIDNT WORK
+
+#    image_with_word_blobs = cv2.dilate(image_with_word_blobs, np.ones((2, 1), np.uint8), iterations=2) # (height, width) 
+#     plt.imshow(image_with_word_blobs, cmap = 'gray') 
+#     plt.title('final vertical dilation to increase width of blobs')
+#     plt.show() 
+
+
+#     # **Step 3: Subtract the Vertical Lines from the Image to Break Column Merges**
+#    # **Step 1: Preprocess to Enhance Gaps (Optional)**
+#     image_with_word_blobs = cv2.morphologyEx(image_with_word_blobs, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+
+#     # **Step 2: Compute the Vertical Projection Profile**
+#     vertical_projection = np.sum(255 - image_with_word_blobs, axis=0)  # Sum pixel intensities along each column
+
+#     # **Step 3: Normalize & Identify Vertical Gaps**
+#     normalized_projection = vertical_projection / (np.max(vertical_projection) + 1e-5)  # Avoid division by zero
+#     threshold = 0.2  # Adjust this to detect prominent dark vertical gaps
+#     column_positions = np.where(normalized_projection < threshold)[0]  # Get columns with the lowest intensity
+
+#     # **Step 4: Filter Column Positions for Clean Separation**
+#     filtered_columns = []
+#     min_distance = 50  # Avoid closely spaced columns
+
+#     for i in range(len(column_positions) - 1):
+#         if (i == 0) or (column_positions[i] - column_positions[i - 1] > min_distance):
+#             filtered_columns.append(column_positions[i])
+
+#     # **Step 5: Draw Vertical Lines Using These Positions**
+#     overlay_image = cv2.cvtColor(image_with_word_blobs, cv2.COLOR_GRAY2BGR)  # Convert grayscale to color for visualization
+
+#     for x in filtered_columns:
+#         cv2.line(overlay_image, (x, 0), (x, image_with_word_blobs.shape[0]), (0, 0, 255), thickness=3)  # Red lines
+
+#     # **Step 6: Show the Overlayed Image Before Subtraction**
+#     plt.figure(figsize=(10, 6))
+#     plt.imshow(overlay_image)
+#     plt.title("Image with Automatically Detected Vertical Lines")
+#     plt.show()
+
+#     # **Step 6: Create a Mask for Subtraction**
+#     vertical_line_mask = np.zeros_like(image_with_word_blobs)
+#     for x in filtered_columns:
+#         cv2.line(vertical_line_mask, (x, 0), (x, image_with_word_blobs.shape[0]), 255, thickness=3)  # Thicker mask lines
+
+#     # **Step 7: Subtract Vertical Lines from the Image**
+#     image_with_word_blobs = cv2.subtract(image_with_word_blobs, vertical_line_mask)
+
+#     # **Step 8: Show Final Image After Removing Vertical Connections**
+#     plt.imshow(image_with_word_blobs, cmap="gray")
+#     plt.title("Final Image After Removing Vertical Merges")
+#     plt.show()
+
+
+
+
+
+
+    # kernel_to_remove_gaps_between_words = np.ones((1, 10), np.uint8)  # Larger kernel to bridge gaps better
+    # image_with_word_blobs = cv2.dilate(image_with_word_blobs, kernel_to_remove_gaps_between_words, iterations=1) # was 5 iterations previously
+
+    # # kernel_to_remove_gaps_between_words = np.ones((1, 23), np.uint8)  # Larger kernel to bridge gaps better
+    # # image_with_word_blobs = cv2.dilate(image_with_word_blobs, kernel_to_remove_gaps_between_words, iterations=1) # was 5 iterations previously
+
+    # plt.imshow(image_with_word_blobs, cmap = 'gray') # figure showing detected table image with horizintal and vertical lines removed.
+    # plt.show() 
+
+
+
+
+
+    # # simple_kernel = np.ones((3,3), np.uint8)
+    # simple_kernel = np.ones((1,3), np.uint8)  # 1 row, 3 columns
+    # image_with_word_blobs = cv2.dilate(image_with_word_blobs, simple_kernel, iterations=2)
+
+    # # === NEW STEP: Detect & Remove Short Horizontal Lines (Above 100px) ===
+    # min_line_length = 50  # Threshold for what counts as a horizontal line
+    # max_line_gap = 10  # Allow some small breaks in detected lines
+
+    # # Apply Canny edge detection to find edges
+    # edges = cv2.Canny(image_with_word_blobs, 50, 150, apertureSize=7)
+
+    # # Detect lines using Hough Transform
+    # lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=50, minLineLength=min_line_length, maxLineGap=max_line_gap)
+
+    # # Remove detected horizontal lines
+    # if lines is not None:
+    #     for line in lines:
+    #         x1, y1, x2, y2 = line[0]
+    #         angle = np.abs(np.arctan2(y2 - y1, x2 - x1) * 180.0 / np.pi)
+
+    #          # Remove lines if they are roughly horizontal (angle between -15° to +15°)
+    #         if (angle < 15) or (angle > 165):  
+    #             cv2.line(image_with_word_blobs, (x1, y1), (x2, y2), (0, 0, 0), thickness=2)  # Overwrite with black
+
+
+
+    # # Detecting the dotted lines using horizontal line detection and erosion. ### ADDITIONAL STEP: This is because the original images ahve dotted horizontal lines which cvan still be detected after the first removal of main (undotted) horizontal lines
+    # hor_kernel_2 = cv2.getStructuringElement(cv2.MORPH_RECT, (np.array(image_with_word_blobs).shape[1]//55, 1))
+    # image_3 = cv2.erode(image_with_word_blobs, hor_kernel_2, iterations=2)
+    # horizontal_lines_2 = cv2.dilate(image_3, hor_kernel_2, iterations=1)
+    # # Removing the dotted liens by substracting them from the original image 
+    # image_without_lines_2 = cv2.subtract(image_with_word_blobs, horizontal_lines_2)
 
 
     ## Using contours in order to detect text in the table after removing the vertical and horizontal lines
     # Assuming 'table' is your input image in BGR format
-    result = cv2.findContours(image_without_lines_2, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    # result = cv2.findContours(image_without_lines_2, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    result = cv2.findContours(image_with_word_blobs, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     contours = result[0]
     # Original image of table in binarizesd format
     image_with_all_bounding_boxes = cv2.imread(save_path)
     table_binarized = image_with_all_bounding_boxes.copy()
     
 
-    ## Plots only for visualization purposes. Uncomment the lines below to show the different steps
+    # Plots only for visualization purposes. Uncomment the lines below to show the different steps
     
-    # plt.imshow(image_without_lines_noise_removed, cmap = 'gray') # figure showing detected table image with horizintal and vertical lines removed.
-    # plt.show() 
+    plt.imshow(image_without_lines, cmap = 'gray') # figure showing detected table image with horizintal and vertical lines removed.
+    plt.show() 
+
+    plt.imshow(image_without_lines_noise_removed, cmap = 'gray') # figure showing detected table image with horizintal and vertical lines removed.
+    plt.show() 
+
+    plt.imshow(image_with_word_blobs, cmap = 'gray') # figure showing text blobs on the detected table image with horizintal and vertical lines removed.
+    plt.show()
 
     # plt.imshow(image_without_lines_2, cmap = 'gray') # figure showing text blobs on the detected table image with horizintal and vertical lines removed.
     # plt.show()
@@ -508,9 +1042,36 @@ def table_and_cell_detection(image_in_grayscale, binarized_image, original_image
     # plt.imshow(detected_table_cells[1]) # clipped detected table
     # plt.show()
 
+    ## FOR VISUALIZATION PURPOSES. Uncomment the lines below to plot the identified cells (contours/bounding boxes)
+    # Make a copy of the original image to overlay contours without modifying the original
+    table_img_bin_overlayed_with_contours = table_img_bin.copy()
+    # Convert the grayscale image to RGB to support colored bounding boxes
+    table_img_bin_overlayed_with_contours = cv2.cvtColor(table_img_bin_overlayed_with_contours, cv2.COLOR_GRAY2RGB)
+
 
     # Filter out smaller or larger bounding boxes from all the detected text contours. This is helpful to avoid overly large cells or small cells with no text. Remember to adjust these values based on the table structure in your specific case 
     filtered_contours = filter_contours(contours, min_cell_width_threshold, min_cell_height_threshold, max_cell_width_threshold, max_cell_height_threshold)
+
+    # Iterate over each contour in the new_contours list and draw bounding boxes
+    for contour in filtered_contours:
+        if contour is not None and len(contour) > 0:
+            x, y, w, h = cv2.boundingRect(contour)
+
+            # Adjust bounding box dimensions
+            increase_factor_width = 0.05
+            increase_factor_height = 0.25
+            x += int(w * increase_factor_width) # Increase width
+            y -= int(h * increase_factor_height) # Increase height
+            w -= int(w * increase_factor_width) # Decrease width a little to avoid vertical lines that may be transcribed as the number 1 yet they aren't a number
+            h += int(h * increase_factor_height * 2) # Increase height
+            
+            # Draw the bounding box directly on the overlay image
+            cv2.rectangle(table_img_bin_overlayed_with_contours, (x, y), (x + w, y + h), (0, 0, 255), 4)
+
+    # Display the image with bounding boxes using matplotlib
+    plt.imshow(table_img_bin_overlayed_with_contours)
+    plt.axis('off')  # Hide axis
+    plt.show()
 
     # Sort contours by y-coordinate
     contours_sorted = sorted(filtered_contours, key=lambda c: cv2.boundingRect(c)[1])

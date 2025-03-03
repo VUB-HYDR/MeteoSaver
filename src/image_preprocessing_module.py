@@ -37,9 +37,8 @@ def image_preprocessing(image_path):
     #  The method calculates the threshold for small regions (91x91 block size) 
     # of the image using the mean of pixel intensities within that region. The threshold is then adjusted by subtracting 6. 
     # Pixels above the threshold are set to 255 (white), and those below are set to 0 (black).
-    binarized_image = cv2.adaptiveThreshold(image_in_grayscale, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 91,6)
+    binarized_image = cv2.adaptiveThreshold(image_in_grayscale, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 51,6)
     
-
     ## ONLY FOR VISUALIZATION PURPOSES - UNCOMMENT THE LINES BELOW 
     ## Plotting the grayscale images
     # plt.imshow(image_in_grayscale, cmap='gray')
