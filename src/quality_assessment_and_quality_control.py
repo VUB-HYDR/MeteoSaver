@@ -42,6 +42,31 @@ def is_string_convertible_to_float(value):
         return False
 
 
+def clean_numeric_string(value):
+    """
+    Cleans a transcribed numeric value by removing spaces, tabs, and newlines.
+
+    This function ensures that the output is a properly formatted number string.
+
+    Parameters
+    ----------
+    value : Any
+        The value to clean.
+    
+    Returns
+    -------
+    str
+        A cleaned string of transcribed values without spaces, tabs or new lines.
+        Returns an empty string if the input is not convertible.
+    """
+    if value is None:
+        return ""
+
+    # Convert to string, remove spaces, tabs, and newlines
+    cleaned_value = str(value).strip().replace("\n", "").replace("\t", "").replace(" ", "")
+
+    return cleaned_value
+
 
 
 def highlight_change(color, worksheet_and_cell_coordinate, filename):
@@ -285,6 +310,7 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
     # Note: we ignored the decimal points in the transcription module to reduce the noise in the transcripbed values since the sheets have dotted lines that would be recoognized by the OCR/HTR model as multiple decimal points.
     for row in new_worksheet.iter_rows(min_row=header_rows+1, max_row=new_worksheet.max_row, min_col=3, max_col=new_worksheet.max_column-1): # For columns: avoid the first two columns and the last column (2nd with Date, and last also with the Date)
         for cell in row:
+            cell.value = clean_numeric_string(cell.value)
             if is_string_convertible_to_float(cell.value): # Checking if the value transcribed in the cell is convertible to a float to avoid strings 
                 cell.value = (float(cell.value))/(10**decimal_places) # This is set up in the configuration file.Here we had one decimal place through the entire sheet, so  we divide the cell value by 10
     new_workbook.save(new_version_of_file) # Save the modified workbook
@@ -1101,6 +1127,37 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
                     else:
                         highlight_change('75696F', cell_for_average, new_version_of_file)  # #75696F is Grey. Highlight to show that transcribed multi-day total average value is not equal to the transcribed daily values, and hence we cant confirm if the transcription was correct.
                         new_workbook.save(new_version_of_file)                
+
+
+    # Check the cells by rows to ensure that Min temp < Average Temp < Max Temp 
+    for row in new_worksheet.iter_rows(min_row=header_rows+1, max_row=new_worksheet.max_row, min_col=min_col, max_col=max_col):
+        if row[0].row in excluded_rows:
+            continue 
+        
+        # Create a dictionary to map column names (D, E, F, etc.) to the cell values
+        row_cells = {columns_to_check[i]: row[columns_to_check_indices[i] - min_col] for i in range(len(columns_to_check))}
+
+        # Now you can access the cells dynamically using the column names
+        D = row_cells.get('D')  # Max Temp
+        E = row_cells.get('E')  # Min Temp
+        F = row_cells.get('F')  # Average Temp
+
+        # Check if the highlighted cells have values
+        D_value_exists = is_string_convertible_to_float(D.value)
+        E_value_exists = is_string_convertible_to_float(E.value)
+        F_value_exists = is_string_convertible_to_float(F.value)
+
+        if D_value_exists and E_value_exists and F_value_exists:
+            D_value = float(D.value)
+            E_value = float(E.value)
+            F_value = float(F.value)
+            if not (E_value <= F_value):
+                highlight_change('CC3300', E, new_version_of_file)  # Dark Red. Highlight to show that transcribed temp value may not be correct
+                highlight_change('CC3300', F, new_version_of_file)  # Dark Red. Highlight to show that transcribed temp value may not be correct
+            if not (F_value <= D_value):
+                highlight_change('CC3300', D, new_version_of_file)  # Dark Red. Highlight to show that transcribed temp value may not be correct
+                highlight_change('CC3300', F, new_version_of_file)  # Dark Red. Highlight to show that transcribed temp value may not be correct
+
 
     # Save final changes
     new_workbook.save(new_version_of_file)    

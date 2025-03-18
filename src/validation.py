@@ -563,7 +563,7 @@ def plot_comparison(manual_df, post_processed_df, output_folder_path, station, p
     # Save the plot
     plot_filename = os.path.join(output_folder_path, f'temperature_comparison_plot_{cleaned_post_file_name}.jpg')
     plt.savefig(plot_filename, format='jpg')
-    plt.show()
+    # plt.show()
 
 
 

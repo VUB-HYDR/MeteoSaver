@@ -17,74 +17,291 @@ from sklearn.cluster import KMeans
 import math
 import random
 from scipy.stats import trim_mean
+from scipy.cluster.hierarchy import fcluster, linkage
+from sklearn.cluster import DBSCAN
+from datetime import datetime
+from calendar import monthrange
 
-def organize_contours_midpoint(contours, max_rows):
-    '''
-    # Organizes the bounding boxes, here termed as contours, in rows by their center co-ordinates using the KMeans clustering
+# def organize_contours_midpoint(contours, max_rows):
+#     '''
+#     # Organizes the bounding boxes, here termed as contours, in rows by their center co-ordinates using the KMeans clustering
 
-    Parameters
+#     Parameters
+#     --------------
+#     contours: list of bounding boxes (with their x, y, w, h coordinates)
+#         List of contours for the detected text in the table cells with coordinates
+
+#     max_rows: int
+#         Maximum rows, adjusted based on your table's expected structure
+
+#     Returns
+#     -------------- 
+#     rows: Bounding boxes organised in rows using Kmeans clustering
+
+#     '''
+
+#     midpoints = [(cv2.boundingRect(contour)[1] + cv2.boundingRect(contour)[3] // 2) for contour in contours]
+#     if len(midpoints) == 0:
+#         return []
+#     kmeans = KMeans(n_clusters=min(max_rows, len(midpoints)), random_state=0)
+#     kmeans.fit(np.array(midpoints).reshape(-1, 1))
+#     labels = kmeans.labels_
+#     rows = [[] for _ in range(max_rows)]
+#     for label, contour in zip(labels, contours):
+#         rows[label].append(contour)
+#     for i in range(len(rows)):
+#         rows[i] = sorted(rows[i], key=lambda c: cv2.boundingRect(c)[0])
+#     return rows
+
+
+# def organize_contours_top(contours, max_rows):
+#     '''
+#     # Organizes the bounding boxes, here termed as contours, in rows by their top co-ordinates using the KMeans clustering
+
+#     Parameters
+#     --------------
+#     contours: list of bounding boxes (with their x, y, w, h coordinates)
+#         List of contours for the detected text in the table cells with coordinates
+
+#     max_rows: int
+#         Maximum rows, adjusted based on your table's expected structure
+
+#     Returns
+#     -------------- 
+#     rows: Bounding boxes organised in rows using Kmeans clustering
+
+#     '''
+
+#     # Top for vertical clustering
+#     top = [cv2.boundingRect(contour)[1] for contour in contours]
+#     if len(top) == 0:
+#         return []
+
+#     kmeans = KMeans(n_clusters=min(max_rows, len(top)), random_state=0)
+#     kmeans.fit(np.array(top).reshape(-1, 1))
+#     labels = kmeans.labels_
+
+#     rows = [[] for _ in range(max_rows)]
+#     for label, contour in zip(labels, contours):
+#         rows[label].append(contour)
+
+#     for i in range(len(rows)):
+#         rows[i] = sorted(rows[i], key=lambda c: cv2.boundingRect(c)[0])
+
+#     return rows
+
+def get_max_rows_from_filename(filename):
+    """ Extract year and month from filename and determine max rows. """
+    try:
+        # Extract YYYYMMDD part from filename (assuming format: STN_YYYYMMDD_SF)
+        parts = filename.split('_')  # Splitting by '_'
+        if len(parts) < 3:
+            raise ValueError("Unexpected filename format")
+
+        date_part = parts[1]  # Extract YYYYMMDD
+        year = int(date_part[:4])  # First 4 characters = Year
+        month = int(date_part[4:6])  # Next 2 characters = Month
+        
+        # Get the number of days in the month (handles leap years)
+        num_days = monthrange(year, month)[1]
+
+        # Calculate max_rows dynamically
+        max_rows = num_days + 12  # Adding 5-day totals & averages
+        
+        return max_rows
+    except Exception as e:
+        print(f"Error processing filename {filename}: {e}")
+        return 43  # Default to the max value (31 days)
+
+
+def organize_contours_midpoint(contours, filename):
+    """
+    Organizes contours into `max_rows` using **midpoint clustering**, ensuring:
+    - The row median is calculated using only the **50% closest** boxes.
+    - Misaligned boxes are reassigned to the best row.
+    - No row has more than `max_columns` boxes.
+
+    Parameters:
     --------------
-    contours: list of bounding boxes (with their x, y, w, h coordinates)
-        List of contours for the detected text in the table cells with coordinates
+    contours: list
+        List of bounding boxes (contours) detected in the image.
 
     max_rows: int
-        Maximum rows, adjusted based on your table's expected structure
+        Expected number of rows.
 
-    Returns
-    -------------- 
-    rows: Bounding boxes organised in rows using Kmeans clustering
+    max_columns: int
+        Expected number of columns.
 
-    '''
-
-    midpoints = [(cv2.boundingRect(contour)[1] + cv2.boundingRect(contour)[3] // 2) for contour in contours]
-    if len(midpoints) == 0:
-        return []
-    kmeans = KMeans(n_clusters=min(max_rows, len(midpoints)), random_state=0)
-    kmeans.fit(np.array(midpoints).reshape(-1, 1))
-    labels = kmeans.labels_
-    rows = [[] for _ in range(max_rows)]
-    for label, contour in zip(labels, contours):
-        rows[label].append(contour)
-    for i in range(len(rows)):
-        rows[i] = sorted(rows[i], key=lambda c: cv2.boundingRect(c)[0])
-    return rows
-
-
-def organize_contours_top(contours, max_rows):
-    '''
-    # Organizes the bounding boxes, here termed as contours, in rows by their top co-ordinates using the KMeans clustering
-
-    Parameters
+    Returns:
     --------------
-    contours: list of bounding boxes (with their x, y, w, h coordinates)
-        List of contours for the detected text in the table cells with coordinates
+    sorted_rows: list of lists
+        Bounding boxes grouped into ordered rows.
+    """
+
+    if not contours:
+        return []
+
+    # Step 1: Extract **midpoint y-coordinates** for clustering
+    midpoints = np.array([cv2.boundingRect(c)[1] + cv2.boundingRect(c)[3] // 2 for c in contours]).reshape(-1, 1)
+
+    # Step 2: Perform K-Means clustering on midpoints
+    max_rows = get_max_rows_from_filename(filename)
+    kmeans = KMeans(n_clusters=min(max_rows, len(midpoints)), random_state=0, n_init=50, tol=1e-2)
+    kmeans.fit(midpoints)
+    labels = kmeans.labels_
+
+    # Step 3: Assign contours to rows based on clustering
+    row_dict = {i: [] for i in range(max_rows)}
+    for label, contour in zip(labels, contours):
+        row_dict[label].append(contour)
+
+    # Step 4: Compute **super strict row medians** using only the closest 50%
+    row_medians = {}
+
+    for i, row in row_dict.items():
+        if len(row) > 2:
+            y_mids = np.array([cv2.boundingRect(c)[1] + cv2.boundingRect(c)[3] // 2 for c in row])
+            y_mids.sort()
+
+            # Keep **only the middle 50% closest values**
+            trimmed_y_mids = y_mids[len(y_mids) // 4 : 3 * len(y_mids) // 4]
+
+            # Compute median of the **trimmed** values
+            row_medians[i] = np.median(trimmed_y_mids)
+        else:
+            row_medians[i] = np.median([cv2.boundingRect(c)[1] + cv2.boundingRect(c)[3] // 2 for c in row])
+
+    # Step 5: Move misplaced boxes to the best row
+    adjusted_rows = {i: [] for i in range(max_rows)}
+
+    for i, row in row_dict.items():
+        for box in row:
+            y_mid = cv2.boundingRect(box)[1] + cv2.boundingRect(box)[3] // 2  # **Midpoint y-coordinate**
+            
+            # Find closest **trusted** row median (ignoring outliers)
+            closest_row = i
+            min_distance = abs(y_mid - row_medians[i])
+
+            if i > 0:  # Check row above
+                distance_up = abs(y_mid - row_medians[i-1])
+                if distance_up < min_distance:
+                    min_distance = distance_up
+                    closest_row = i-1
+
+            if i < max_rows - 1:  # Check row below
+                distance_down = abs(y_mid - row_medians[i+1])
+                if distance_down < min_distance:
+                    closest_row = i+1
+
+            adjusted_rows[closest_row].append(box)
+
+    # Step 6: Sort each adjusted row again (left to right)
+    for i in range(len(adjusted_rows)):
+        adjusted_rows[i] = sorted(adjusted_rows[i], key=lambda c: cv2.boundingRect(c)[0])
+
+    # Convert to final sorted list
+    sorted_rows = [adjusted_rows[i] for i in range(max_rows)]
+
+    return sorted_rows
+
+
+def organize_contours_top(contours, filename):
+    """
+    Organizes contours into `max_rows` using **top edge clustering**, ensuring:
+    - The row median is calculated using only the **50% closest** boxes.
+    - Misaligned boxes are reassigned to the best row.
+    - No row has more than `max_columns` boxes.
+
+    Parameters:
+    --------------
+    contours: list
+        List of bounding boxes (contours) detected in the image.
 
     max_rows: int
-        Maximum rows, adjusted based on your table's expected structure
+        Expected number of rows.
 
-    Returns
-    -------------- 
-    rows: Bounding boxes organised in rows using Kmeans clustering
+    max_columns: int
+        Expected number of columns.
 
-    '''
+    Returns:
+    --------------
+    sorted_rows: list of lists
+        Bounding boxes grouped into ordered rows.
+    """
 
-    # Top for vertical clustering
-    top = [cv2.boundingRect(contour)[1] for contour in contours]
-    if len(top) == 0:
+    if not contours:
         return []
 
-    kmeans = KMeans(n_clusters=min(max_rows, len(top)), random_state=0)
-    kmeans.fit(np.array(top).reshape(-1, 1))
+    # Step 1: Extract **top edge y-coordinates** for clustering
+    top_edges = np.array([cv2.boundingRect(c)[1] for c in contours]).reshape(-1, 1)
+
+    # Step 2: Perform K-Means clustering on top edges
+    max_rows = get_max_rows_from_filename(filename)
+    kmeans = KMeans(n_clusters=min(max_rows, len(top_edges)), random_state=0, n_init=50, tol=1e-2)
+    kmeans.fit(top_edges)
     labels = kmeans.labels_
 
-    rows = [[] for _ in range(max_rows)]
+    # Step 3: Assign contours to rows based on clustering
+    row_dict = {i: [] for i in range(max_rows)}
     for label, contour in zip(labels, contours):
-        rows[label].append(contour)
+        row_dict[label].append(contour)
 
-    for i in range(len(rows)):
-        rows[i] = sorted(rows[i], key=lambda c: cv2.boundingRect(c)[0])
+    # Step 4: Compute **super strict row medians** using only the closest 50%
+    row_medians = {}
 
-    return rows
+    for i, row in row_dict.items():
+        if len(row) > 2:
+            y_tops = np.array([cv2.boundingRect(c)[1] for c in row])
+            y_tops.sort()
+
+            # Keep **only the middle 50% closest values**
+            trimmed_y_tops = y_tops[len(y_tops) // 4 : 3 * len(y_tops) // 4]
+
+            # Compute median of the **trimmed** values
+            row_medians[i] = np.median(trimmed_y_tops)
+        else:
+            row_medians[i] = np.median([cv2.boundingRect(c)[1] for c in row])
+
+    # Step 5: Move misplaced boxes to the best row
+    adjusted_rows = {i: [] for i in range(max_rows)}
+
+    for i, row in row_dict.items():
+        for box in row:
+            y_top = cv2.boundingRect(box)[1]  # **Top edge y-coordinate**
+            
+            # Find closest **trusted** row median (ignoring outliers)
+            closest_row = i
+            min_distance = abs(y_top - row_medians[i])
+
+            if i > 0:  # Check row above
+                distance_up = abs(y_top - row_medians[i-1])
+                if distance_up < min_distance:
+                    min_distance = distance_up
+                    closest_row = i-1
+
+            if i < max_rows - 1:  # Check row below
+                distance_down = abs(y_top - row_medians[i+1])
+                if distance_down < min_distance:
+                    closest_row = i+1
+
+            adjusted_rows[closest_row].append(box)
+
+    # Step 6: Sort each adjusted row again (left to right)
+    for i in range(len(adjusted_rows)):
+        adjusted_rows[i] = sorted(adjusted_rows[i], key=lambda c: cv2.boundingRect(c)[0])
+
+    # Convert to final sorted list
+    sorted_rows = [adjusted_rows[i] for i in range(max_rows)]
+
+    return sorted_rows
+
+
+
+
+
+
+
+
 
 
 def organize_contours_fraction(contours, max_rows, fraction=0.33):
@@ -128,25 +345,116 @@ def organize_contours_fraction(contours, max_rows, fraction=0.33):
 
     return rows
 
-def calculate_cell_reference(x, row_index, max_columns, table_width):
-    '''
-    Calculates the Excel cell reference (e.g., 'B3') based on the horizontal position of a detected cell's x-coordinate within a table.
+# def calculate_cell_reference(x, row_index, max_columns, table_width):
+#     '''
+#     Calculates the Excel cell reference (e.g., 'B3') based on the horizontal position of a detected cell's x-coordinate within a table.
 
-    This function determines the appropriate Excel cell reference by converting the horizontal position of a cell's x-coordinate into a column index. The column index is combined with the given row index to generate the full cell reference in the format used by Excel (e.g., 'A1', 'B2'). The column index is adjusted to ensure it remains within valid boundaries (1 to `max_columns`).
+#     This function determines the appropriate Excel cell reference by converting the horizontal position of a cell's x-coordinate into a column index. The column index is combined with the given row index to generate the full cell reference in the format used by Excel (e.g., 'A1', 'B2'). The column index is adjusted to ensure it remains within valid boundaries (1 to `max_columns`).
+
+#     Parameters
+#     --------------
+#     x : float or int
+#         The x-coordinate of the cell (in pixels), representing its horizontal position within the table.
+    
+#     row_index : int
+#         The row number in the table to which the cell belongs. This is used directly in the final cell reference.
+    
+#     max_columns : int
+#         The maximum number of columns in the table. This ensures that the calculated column index does not exceed the available columns.
+    
+#     table_width : int or float
+#         The total width of the table (in pixels). This is used to determine the relative position of `x` within the table and calculate the corresponding column index.
+
+#     Returns
+#     --------------
+#     cell_reference : str
+#         The Excel-style cell reference (e.g., 'B3', 'C7') corresponding to the detected cell's position within the table.
+#     '''
+
+#     column = math.floor(x / table_width * max_columns) + 1
+
+#     # Ensure the column index is within valid ranges
+#     if column < 1:
+#         column = 1
+#     elif column > max_columns:
+#         column = max_columns
+
+#     return f'{openpyxl.utils.get_column_letter(column)}{row_index}'
+
+
+# Second trial
+# def calculate_cell_reference(x, w, row_index, max_columns, table_width):
+#     '''
+#     Calculates the Excel cell reference (e.g., 'B3') based on the horizontal position 
+#     of a detected cell using the **center top x-coordinate**.
+
+#     Instead of using just `x`, this function determines the appropriate column based on
+#     the **center** of the bounding box (x + w/2). This ensures that slight shifts in detected
+#     bounding boxes do not result in incorrect column assignments.
+
+#     Parameters
+#     --------------
+#     x : float or int
+#         The x-coordinate of the cell's **top-left** corner.
+    
+#     w : float or int
+#         The width of the bounding box.
+    
+#     row_index : int
+#         The row number in the table to which the cell belongs.
+    
+#     max_columns : int
+#         The maximum number of columns in the table. Ensures the column index does not exceed limits.
+    
+#     table_width : int or float
+#         The total width of the table (in pixels). Used to determine the relative position of `x_center` 
+#         within the table and calculate the corresponding column index.
+
+#     Returns
+#     --------------
+#     cell_reference : str
+#         The Excel-style cell reference (e.g., 'B3', 'C7') corresponding to the detected cell's position within the table.
+#     '''
+
+#     # Use the **center top x-coordinate** instead of just `x`
+#     x_center = x + (w / 2)
+
+#     # Calculate column index based on x_center instead of x
+#     column = math.floor(x_center / table_width * max_columns) + 1
+
+#     # Ensure the column index is within valid ranges
+#     column = max(1, min(column, max_columns))
+
+#     return f'{openpyxl.utils.get_column_letter(column)}{row_index}'
+
+
+
+def calculate_cell_reference(x, w, row_index, assigned_columns_per_row, max_columns, table_width):
+    '''
+    Ensures that there is always only one box per column by tracking assigned columns.
+
+    If two cells are assigned to the same column, the second one is moved to the next available column.
 
     Parameters
     --------------
     x : float or int
-        The x-coordinate of the cell (in pixels), representing its horizontal position within the table.
+        The x-coordinate of the cell's **top-left** corner.
+    
+    w : float or int
+        The width of the bounding box.
     
     row_index : int
-        The row number in the table to which the cell belongs. This is used directly in the final cell reference.
+        The row number in the table to which the cell belongs.
     
     max_columns : int
-        The maximum number of columns in the table. This ensures that the calculated column index does not exceed the available columns.
+        The maximum number of columns in the table. Ensures the column index does not exceed limits.
     
     table_width : int or float
-        The total width of the table (in pixels). This is used to determine the relative position of `x` within the table and calculate the corresponding column index.
+        The total width of the table (in pixels). Used to determine the relative position of `x_center` 
+        within the table and calculate the corresponding column index.
+
+    assigned_columns_per_row : dict
+        A dictionary tracking assigned columns for each row to ensure uniqueness.
 
     Returns
     --------------
@@ -154,16 +462,30 @@ def calculate_cell_reference(x, row_index, max_columns, table_width):
         The Excel-style cell reference (e.g., 'B3', 'C7') corresponding to the detected cell's position within the table.
     '''
 
-    column = math.floor(x / table_width * max_columns) + 1
+    # Use the **center top x-coordinate** instead of just `x`
+    x_center = x + (w / 2)
+
+    # Calculate column index based on x_center instead of x
+    column = math.floor(x_center / table_width * max_columns) + 1
 
     # Ensure the column index is within valid ranges
-    if column < 1:
-        column = 1
-    elif column > max_columns:
-        column = max_columns
+    column = max(1, min(column, max_columns))
+
+    # Ensure the row exists in the tracking dictionary
+    if row_index not in assigned_columns_per_row:
+        assigned_columns_per_row[row_index] = set()
+
+    # If the column is already assigned, shift to the next available column
+    while column in assigned_columns_per_row[row_index] and column <= max_columns:
+        column += 1  # Move to the next column
+
+    # Ensure the new column is within range
+    column = min(column, max_columns)
+
+    # Register the assigned column
+    assigned_columns_per_row[row_index].add(column)
 
     return f'{openpyxl.utils.get_column_letter(column)}{row_index}'
-
 
 
 
@@ -200,47 +522,75 @@ def generate_random_colors(n):
 
 
 
+# def draw_row_markers_and_boxes(image, rows, colors):
+#     '''
+#     Draws bounding boxes around contours in each row and adds numbered markers to each row with distinct colors.
+
+#     This function takes an image and a list of rows, where each row is a list of contours representing table cells or regions of interest. It draws a bounding box around each contour in the row and places a numbered marker to the left of the row. Each row is highlighted with a distinct color, cycling through the provided color list if necessary.
+
+#     Parameters
+#     --------------
+#     image : 
+#         The image on which the bounding boxes and row markers will be drawn. This image is modified in place.
+    
+#     rows : list of lists
+#         A list of rows, where each row is a list of contours (represented as arrays of points) that are part of the same row in a table or grid.
+    
+#     colors : list of tuples
+#         A list of BGR color tuples used to color the bounding boxes and markers for each row. The function cycles through this list if there are more rows than colors.
+
+#     Returns
+#     --------------
+#     None
+#         The function modifies the input image in place and does not return any value. The image will have bounding boxes drawn around the contours and numbered markers for each row.
+#     '''
+
+
+#     font = cv2.FONT_HERSHEY_SIMPLEX
+#     font_scale = 0.5
+#     thickness = 1
+
+#     for idx, row in enumerate(rows):
+#         color = colors[idx % len(colors)]  # Cycle through colors if more rows than colors
+#         y_coords = [cv2.boundingRect(c)[1] + cv2.boundingRect(c)[3] // 2 for c in row]
+#         if y_coords:
+#             y_position = int(np.median(y_coords))
+#             x_position = 10  # arbitrary x position to place the marker
+#             cv2.putText(image, str(idx + 1), (x_position, y_position), font, font_scale, color, thickness)
+        
+#         # Draw bounding boxes for each contour in the row
+#         for contour in row:
+#             x, y, w, h = cv2.boundingRect(contour)
+#             cv2.rectangle(image, (x, y), (x + w, y + h), color, 2)
+
+
 def draw_row_markers_and_boxes(image, rows, colors):
     '''
     Draws bounding boxes around contours in each row and adds numbered markers to each row with distinct colors.
-
-    This function takes an image and a list of rows, where each row is a list of contours representing table cells or regions of interest. It draws a bounding box around each contour in the row and places a numbered marker to the left of the row. Each row is highlighted with a distinct color, cycling through the provided color list if necessary.
-
-    Parameters
-    --------------
-    image : 
-        The image on which the bounding boxes and row markers will be drawn. This image is modified in place.
-    
-    rows : list of lists
-        A list of rows, where each row is a list of contours (represented as arrays of points) that are part of the same row in a table or grid.
-    
-    colors : list of tuples
-        A list of BGR color tuples used to color the bounding boxes and markers for each row. The function cycles through this list if there are more rows than colors.
-
-    Returns
-    --------------
-    None
-        The function modifies the input image in place and does not return any value. The image will have bounding boxes drawn around the contours and numbered markers for each row.
+    Ensures numbering is continuous (1 to 43), even for None rows.
     '''
-
 
     font = cv2.FONT_HERSHEY_SIMPLEX
     font_scale = 0.5
     thickness = 1
 
-    for idx, row in enumerate(rows):
-        color = colors[idx % len(colors)]  # Cycle through colors if more rows than colors
-        y_coords = [cv2.boundingRect(c)[1] + cv2.boundingRect(c)[3] // 2 for c in row]
-        if y_coords:
-            y_position = int(np.median(y_coords))
-            x_position = 10  # arbitrary x position to place the marker
-            cv2.putText(image, str(idx + 1), (x_position, y_position), font, font_scale, color, thickness)
-        
+    for idx in range(len(rows)):  # Iterate over full 43-row structure
+        row = rows[idx]  # Get row (can be None)
+        color = colors[idx % len(colors)]  # Cycle through colors if needed
+
+        y_position = 50 + (idx * 62)  # Approximate vertical position based on row index
+        x_position = 10  # Arbitrary x position for marker
+
+        # Always number rows, even if None
+        cv2.putText(image, str(idx + 1), (x_position, y_position), font, font_scale, color, thickness)
+
+        if row is None:
+            continue  # Skip drawing bounding boxes for None rows
+
         # Draw bounding boxes for each contour in the row
         for contour in row:
             x, y, w, h = cv2.boundingRect(contour)
             cv2.rectangle(image, (x, y), (x + w, y + h), color, 2)
-
 
 
 
@@ -475,6 +825,12 @@ def transcription(detected_table_cells, ocr_model, tesseract_path, transient_tra
         'Top': organize_contours_top
     }
 
+    # organize_methods = {  
+    #         'Midpoint': organize_contours_by_column,
+    #         'Top': organize_contours_by_column
+    #     }
+
+
     for method_name, organize_method in organize_methods.items():
 
         ## Create an Excel workbook and add a worksheet where the transcribed text will be saved
@@ -483,66 +839,110 @@ def transcription(detected_table_cells, ocr_model, tesseract_path, transient_tra
         ws.title = 'OCR_Results'
 
         # Organize the contours
-        organized_rows = organize_method(new_contours, no_of_rows)
+        # organized_rows = organize_method(new_contours, no_of_rows)
+
+        organized_rows = organize_method(new_contours, month_filename)
+        # organized_rows = organize_method(new_contours, max_rows=43, row_threshold=50)
+
         # Sorting the cell (bounding box) rows from first to last using trimmed mean of coordinates
         sorted_rows = sorted(organized_rows, key=lambda row: calculate_trimmed_mean([cv2.boundingRect(c)[1] + cv2.boundingRect(c)[3] // 2 for c in row]))
 
-    
-        ### FOR ILLUSTRATION PURPOSES: Uncomment the following lines if you want to see an example of how the sorting function works. This is for illustration purposes only and not necessary for the main functionality of the script. 
+        # Get the expected max rows (dynamically)
+        max_rows = get_max_rows_from_filename(month_filename)
+
+        # Calculate how many rows need to be padded
+        missing_rows = 43 - max_rows  # Always ensuring 43 rows
+
+        # If there are missing rows, pad `None` before the last two rows (totals & averages)
+        if missing_rows > 0:
+            # Ensure we don't disturb the last two rows
+            sorted_rows = sorted_rows[:-2] + [[None]] * missing_rows + sorted_rows[-2:]
+
+        ## FOR ILLUSTRATION PURPOSES: Uncomment the following lines if you want to see an example of how the sorting function works. This is for illustration purposes only and not necessary for the main functionality of the script. 
         
-        # # Create a copy of the image for visualization
-        # image_before_sorting = table_copy.copy()
-        # image_after_sorting = table_copy.copy()
+        # Create a copy of the image for visualization
+        image_before_sorting = table_copy.copy()
+        image_after_sorting = table_copy.copy()
 
-        # # Generate colors for 43 rows. For sorted row visualitation purposes
-        # colors = generate_random_colors(no_of_rows)  # Random colours for the maximum number of rows, such that each row has its own color for easy identification
+        # Generate colors for 43 rows. For sorted row visualitation purposes
+        colors = generate_random_colors(no_of_rows)  # Random colours for the maximum number of rows, such that each row has its own color for easy identification
 
-        # # Draw markers on the image before sorting
-        # draw_row_markers_and_boxes(image_before_sorting, organized_rows, colors)  # Green color for original order
+        # Draw markers on the image before sorting
+        draw_row_markers_and_boxes(image_before_sorting, organized_rows, colors)  # Green color for original order
 
-        # # Draw markers on the image after sorting
-        # draw_row_markers_and_boxes(image_after_sorting, sorted_rows, colors)  # Red color for sorted order
+        # Draw markers on the image after sorting
+        draw_row_markers_and_boxes(image_after_sorting, sorted_rows, colors)  # Red color for sorted order
 
-        # # Save or display the images for inspection
-        # cv2.imwrite(f'before_sorting_{method_name}.png', image_before_sorting)  # or use cv2.imshow and cv2.waitKey for immediate display
-        # plt.imshow('before_sorting.png')
+        # Ensure save directory exists
+        save_dir = os.path.join(transient_transcription_output_dir, station)
+        os.makedirs(save_dir, exist_ok=True)
+
+        # Define save paths
+        save_path_before = os.path.join(save_dir, f'before_sorting_{method_name}_{month_filename}.png')
+        save_path_after = os.path.join(save_dir, f'after_sorting_{method_name}_{month_filename}.png')
+
+        # Save images
+        cv2.imwrite(save_path_before, image_before_sorting)
+        cv2.imwrite(save_path_after, image_after_sorting)
+
+        # Load images for display
+        img_before = cv2.imread(save_path_before)
+        img_before = cv2.cvtColor(img_before, cv2.COLOR_BGR2RGB)
+        
+        img_after = cv2.imread(save_path_after)
+        img_after = cv2.cvtColor(img_after, cv2.COLOR_BGR2RGB)
+
+        # # # Save or display the images for inspection
+        # plt.imshow(img_before)
         # plt.show()
 
-        # cv2.imwrite(f'after_sorting_{method_name}.png', image_after_sorting)  # or use cv2.imshow and cv2.waitKey for immediate display
-        # plt.imshow('after_sorting.png')
+        # plt.imshow(img_after)
         # plt.show()
-        
     
 
         # Sort boxes within each column of each row by y-coordinate
         for row in sorted_rows:
-            row.sort(key=lambda c: cv2.boundingRect(c)[1])
+            if row is not None:  # Skip None values to avoid errors
+                row.sort(key=lambda c: cv2.boundingRect(c)[1])
 
         for row_index, row in enumerate(sorted_rows, start=1):
+            if row is None:
+                continue  # Skip processing for empty rows
             
             for contour in row:
 
                 x, y, w, h = cv2.boundingRect(contour)              
 
                 # Calculate a factor to modify the bounding box area (e.g., in this case 5% of width and 25% of height)
-                factor_width = 0.05  # Modify this factor as needed
-                increase_factor_height = 0.25 # Modify this factor as needed
+                increase_factor_width = 0.2  # Modify this factor as needed
+                increase_factor_height = 0.3 # Modify this factor as needed
             
-                x += int(w * factor_width)  # Increase width
-                y -= int(h * increase_factor_height)  # Increase height
-                w -= int(1 * w * factor_width)  # Decrease width a little to avoid vertical lines that may be transcribed as the number 1 yet they aren't a number
-                h += int(2 * h * increase_factor_height)  # Increase height
+                # x += int(w * factor_width)  # Increase width
+                # y -= int(h * increase_factor_height)  # Increase height
+                # w -= int(1 * w * factor_width)  # Decrease width a little to avoid vertical lines that may be transcribed as the number 1 yet they aren't a number
+                # h += int(2 * h * increase_factor_height)  # Increase height
+
+                # Expand width
+                new_w = int(w * (1 + increase_factor_width))  # Increase width
+                x = max(0, x - (new_w - w) // 2)  # Center the new width, ensure x is ≥ 0
+
+                # Expand height
+                new_h = int(h * (1 + increase_factor_height * 2))  # Increase height on both sides
+                y = max(0, y - (new_h - h) // 2)  # Center the new height, ensure y is ≥ 0
                 
                 ### FOR ILLUSTRATION PURPOSES: This line below is about drawing a rectangle on the image with the shape of the bounding box. Its not needed for the OCR. This is only for debugging purposes.
                 # image_with_all_bounding_boxes = cv2.rectangle(image_with_all_bounding_boxes, (x, y), (x + w, y + h), (0, 255, 0), 5)
 
-                # Draw the adjusted ROI on the output image
-                cv2.rectangle(ROIs_image, (x, y), (x + w, y + h), (0, 255, 0), 5)  # (0, 255, 0) represent a green color for ROI, and 5 is the thicnkess of the ROI bounbdary boxes
+                # # Draw the adjusted ROI on the output image
+                # cv2.rectangle(ROIs_image, (x, y), (x + w, y + h), (0, 255, 0), 5)  # (0, 255, 0) represent a green color for ROI, and 5 is the thicnkess of the ROI bounbdary boxes
                 
+                # Draw the updated bounding box
+                cv2.rectangle(ROIs_image, (x, y), (x + new_w, y + new_h), (0, 255, 0), 4)
+
                 
                 # OCR
                 # Crop each cell using the bounding rectangle coordinates
-                ROI = table_copy[y:y+h, x:x+w] # Here, the Region Of Interest (ROI) represent the cells (boundary boxes) clipped out from the table image as a prerequiste for text recogniton by the Optical Character Recognition/Handwritten Text Recognition (OCR/HTR) model
+                ROI = table_copy[y:y+new_h, x:x+new_w] # Here, the Region Of Interest (ROI) represent the cells (boundary boxes) clipped out from the table image as a prerequiste for text recogniton by the Optical Character Recognition/Handwritten Text Recognition (OCR/HTR) model
                 
                 if ROI.size != 0:  # Check if the height and width are greater than zero. This is to prevent invalid ROIs
                     
@@ -553,7 +953,7 @@ def transcription(detected_table_cells, ocr_model, tesseract_path, transient_tra
                     cv2.imwrite(save_path_detected_text, ROI)
                     if ocr_model == 'Tesseract-OCR':
                     # Using Tesseract-OCR
-                        ocr_result = pytesseract.image_to_string(save_path_detected_text, lang='V9_plus_multi_digits', config='--oem 3 --psm 6 -c tessedit_char_whitelist=0123456789') # Just added -c tessedit_char_whitelist=0123456789 to really limit the text type/values detected
+                        ocr_result = pytesseract.image_to_string(save_path_detected_text, lang='cobecore-V6', config='--oem 1 --psm 7 -c tessedit_char_whitelist=0123456789 -c segment_penalty_garbage=10') # Just added -c tessedit_char_whitelist=0123456789 to really limit the text type/values detected
 
                         # Here's a brief explanation of some Page Segmentation Modes (PSMs) available in Tesseract:
                         # 0: Orientation and script detection (OSD) only.
@@ -603,22 +1003,26 @@ def transcription(detected_table_cells, ocr_model, tesseract_path, transient_tra
 
                                                
                         # Attain the Ms Excel Template cell coordinates
-                        # Determine the cell reference using the x coodrinate of the bounding box, row index, maximum column number, and image/table width
-                        cell_ref = calculate_cell_reference(x, row_index, max_columns=24, table_width=image_width) # e.g., A1, B5, etc.
-                        
-                        # Additional check: Incase the cell (cell_ref) is already occupied with transcribed text. We then opt for the cell below within the same column
-                        column_letter = openpyxl.utils.get_column_letter(math.floor(x / image_width * no_of_columns) + 1)
-                        initial_row_index = row_index  # Store the initial row index
-                        # Check if the cell is already occupied
-                        if ws[cell_ref].value is not None:
-                            row_index += 1
-                            cell_ref = f'{column_letter}{row_index}'
+                        # # Determine the cell reference using the x coodrinate of the bounding box, row index, maximum column number, and image/table width
+                        # cell_ref = calculate_cell_reference(x, row_index, max_columns=24, table_width=image_width) # e.g., A1, B5, etc.
+
+                        # Dictionary to track assigned columns per row
+                        assigned_columns_per_row = {}
+                        # cell_ref = calculate_cell_reference(x, new_w, row_index, max_columns=24, table_width=image_width) # e.g., A1, B5, etc.
+                        cell_ref = calculate_cell_reference(x, w, row_index, assigned_columns_per_row, max_columns=24, table_width=image_width)
+                        # # Additional check: Incase the cell (cell_ref) is already occupied with transcribed text. We then opt for the cell below within the same column
+                        # column_letter = openpyxl.utils.get_column_letter(math.floor(x / image_width * no_of_columns) + 1)
+                        # initial_row_index = row_index  # Store the initial row index
+                        # # Check if the cell is already occupied
+                        # if ws[cell_ref].value is not None:
+                        #     row_index += 1
+                        #     cell_ref = f'{column_letter}{row_index}'
                         
                         # Place the OCR/HTR recognized text in its respective Ms Excel cell 
                         ws[cell_ref].value = ocr_result   
 
-                        # Restore the row index to the initial value
-                        row_index = initial_row_index
+                        # # Restore the row index to the initial value
+                        # row_index = initial_row_index
 
                         # Set up border styles for excel output
                         thin_border = Border(

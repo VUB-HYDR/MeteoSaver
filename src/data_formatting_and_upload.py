@@ -5,6 +5,7 @@ import pandas as pd
 import re
 import matplotlib.pyplot as plt
 import numpy as np
+from sklearn.linear_model import LinearRegression
 
 
 # Function to extract year, month from filename
@@ -142,7 +143,7 @@ def load_station_metadata(file_path, sheet_name='Stations'):
     })
     
     # Trim whitespace from IDs and ensure they're all strings
-    df['ID'] = df['ID'].astype(str).str.strip()
+    df['ID'] = df['ID'].astype(str).str.strip().str.zfill(3)
 
     # Convert latitude and longitude to decimal degrees using dms_to_decimal
     df['latitude'] = df['latitude'].apply(dms_to_decimal)
@@ -232,6 +233,84 @@ def convert_to_sef_with_metadata(df, station_info, temp_column, temp_type, sourc
 
     return sef_headers, sef_df
 
+def analyze_temperature_trends(output_folder_path, station):
+    """
+    Analyzes and plots temperature trends over time using linear regression.
+
+    Parameters
+    ----------
+    output_folder_path : str
+        Path to the folder where the processed temperature dataset is stored.
+    station : str
+        Unique identifier for the station being analyzed.
+
+    Returns
+    -------
+    None
+        The function plots the temperature trends and prints the trend slopes.
+    """
+
+    # Load the cleaned temperature dataset
+    file_path = os.path.join(output_folder_path, "Daily_all_temperatures.xlsx")
+    df = pd.read_excel(file_path, sheet_name="Data")
+
+    # Drop rows with missing temperature values
+    df_clean = df.dropna(subset=["Max_Temperature", "Min_Temperature", "Avg_Temperature"]).copy()
+
+    # Convert the date components into a single datetime column
+    df_clean["Date"] = pd.to_datetime(df_clean[["Year", "Month", "Day"]])
+
+    # Convert the Year to numerical values for regression
+    df_clean["Year_Num"] = df_clean["Year"].astype(int)
+
+    # Fit linear regression models for Max, Min, and Avg temperatures
+    X = df_clean["Year_Num"].values.reshape(-1, 1)  # Predictor variable (Year)
+    models = {}
+    predictions = {}
+
+    for temp_type in ["Max_Temperature", "Min_Temperature", "Avg_Temperature"]:
+        y = df_clean[temp_type].values  # Response variable (Temperature)
+        
+        # Fit the linear regression model
+        model = LinearRegression().fit(X, y)
+        models[temp_type] = model
+        
+        # Predict values for the trend line
+        predictions[temp_type] = model.predict(X)
+
+    # Plot the trends using Matplotlib
+    plt.figure(figsize=(12, 6))
+    
+    # Scatter plots for temperature data
+    plt.scatter(df_clean["Date"], df_clean["Max_Temperature"], color="red", label="Max Temperature", alpha=0.5, s=10)
+    plt.scatter(df_clean["Date"], df_clean["Min_Temperature"], color="blue", label="Min Temperature", alpha=0.5, s=10)
+    plt.scatter(df_clean["Date"], df_clean["Avg_Temperature"], color="orange", label="Avg Temperature", alpha=0.5, s=10)
+
+    # Plot trend lines
+    plt.plot(df_clean["Date"], predictions["Max_Temperature"], color="darkred", linewidth=2, label="Max Temp Trend")
+    plt.plot(df_clean["Date"], predictions["Min_Temperature"], color="darkblue", linewidth=2, label="Min Temp Trend")
+    plt.plot(df_clean["Date"], predictions["Avg_Temperature"], color="darkorange", linewidth=2, label="Avg Temp Trend")
+
+    # Formatting the plot
+    plt.xlabel("Year")
+    plt.ylabel("Temperature (°C)")
+    plt.title(f"Temperature Trends at Station {station}")
+    plt.legend()
+    plt.grid(True)
+
+    # Save and show the plot
+    trend_plot_path = os.path.join(output_folder_path, "temperature_trend_plot.jpg")
+    plt.savefig(trend_plot_path, format="jpg")
+    # plt.show()
+
+    # Extract and print the slope values
+    trend_slopes = {temp_type: models[temp_type].coef_[0] for temp_type in models}
+
+    print("\nTrend slopes (°C per year):")
+    for temp, slope in trend_slopes.items():
+        print(f"{temp}: {slope:.5f} °C/year")
+
+    return trend_slopes
 
 
 def data_formatting(input_folder_path, output_folder_path, metadata_file_path, station, date_column, columns_to_check, header_rows, multi_day_totals, multi_day_averages, excluded_rows, additional_excluded_rows, final_totals_rows, uncertainty_margin):
@@ -295,7 +374,7 @@ def data_formatting(input_folder_path, output_folder_path, metadata_file_path, s
     
     # Ensure both station ID and station parameter are strings
     station = str(station)  # Convert input station ID to string
-    station_metadata['ID'] = station_metadata['ID'].astype(str)  # Ensure IDs in metadata are also strings
+    station_metadata['ID'] = station_metadata['ID'].astype(str).str.strip().str.zfill(3)  # Ensure IDs in metadata are also strings
     print("Station metadata IDs:", station_metadata['ID'].tolist())
     
     # Filter metadata for the specified station ID
@@ -537,4 +616,10 @@ def data_formatting(input_folder_path, output_folder_path, metadata_file_path, s
 
     # Save the plot
     plt.savefig(f'{output_folder_path}/temperature_plot.jpg', format='jpg')
-    plt.show()
+    # plt.show()
+
+    # # Call the function to analyze temperature trends after data formatting
+    # trend_slopes = analyze_temperature_trends(output_folder_path, station)
+
+
+

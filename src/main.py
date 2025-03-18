@@ -78,77 +78,77 @@ def process_station(station):
                                                    no_of_rows=int(config['TableAndCellDetection']['no_of_rows']), 
                                                    no_of_columns=int(config['TableAndCellDetection']['no_of_columns']))
             
-            # # Module 4: Transcription
-            # start_time = datetime.now()
-            # ocr_model = config['Transcription']['ocr_model'] # Selected OCR/HTR model
-            # # Incase of Tesseract
-            # # Ensure that the tesseract path is set correctly for your local system
-            # tesseract_path = config['Transcription']['tesseract_path']
-            # # Set TESSDATA_PREFIX to the system's tessdata directory (for system-wide language files)
-            # system_tessdata_dir = config['Transcription']['system_tessdata_dir']
-            # os.environ["TESSDATA_PREFIX"] = system_tessdata_dir
-            # transcribed_table = transcription(detected_table_and_cells, ocr_model, tesseract_path, transient_transcription_output_dir, pre_QA_QC_transcribed_hydroclimate_data_dir_station, station, month_filename,
-            #                                   no_of_rows=int(config['TableAndCellDetection']['no_of_rows']),
-            #                                   no_of_columns=int(config['TableAndCellDetection']['no_of_columns']),
-            #                                   no_of_rows_including_headers=int(config['TableAndCellDetection']['no_of_rows_including_headers']))
+            # Module 4: Transcription
+            start_time = datetime.now()
+            ocr_model = config['Transcription']['ocr_model'] # Selected OCR/HTR model
+            # Incase of Tesseract
+            # Ensure that the tesseract path is set correctly for your local system
+            tesseract_path = config['Transcription']['tesseract_path']
+            # Set TESSDATA_PREFIX to the system's tessdata directory (for system-wide language files)
+            system_tessdata_dir = config['Transcription']['system_tessdata_dir']
+            os.environ["TESSDATA_PREFIX"] = system_tessdata_dir
+            transcribed_table = transcription(detected_table_and_cells, ocr_model, tesseract_path, transient_transcription_output_dir, pre_QA_QC_transcribed_hydroclimate_data_dir_station, station, month_filename,
+                                              no_of_rows=int(config['TableAndCellDetection']['no_of_rows']),
+                                              no_of_columns=int(config['TableAndCellDetection']['no_of_columns']),
+                                              no_of_rows_including_headers=int(config['TableAndCellDetection']['no_of_rows_including_headers']))
             
-            # end_time = datetime.now()
+            end_time = datetime.now()
 
-            # print(f'Duration of transcribing: {end_time - start_time}')
+            print(f'Duration of transcribing: {end_time - start_time}')
             
-            # # Module 5: Quality assessment and Quality Control
-            # qa_qc_checked_data = qa_qc(transcribed_table, station, transient_transcription_output_dir, post_QA_QC_transcribed_hydroclimate_data_dir_station, month_filename,
-            #                             max_temperature_threshold = float(config['QAQC']['max_temperature_threshold']),
-            #                             min_temperature_threshold = float(config['QAQC']['min_temperature_threshold']),
-            #                             decimal_places = int(config['QAQC']['decimal_places']),
-            #                             uncertainty_margin = float(config['QAQC']['uncertainty_margin']),
-            #                             header_rows = int(config['QAQC']['header_rows']),
-            #                             multi_day_totals = config.getboolean('QAQC', 'multi_day_totals'),
-            #                             multi_day_averages = config.getboolean('QAQC', 'multi_day_averages'),
-            #                             max_days_for_multi_day_total = int(config['QAQC']['max_days_for_multi_day_total']),
-            #                             multi_day_totals_rows = list(map(int, config['QAQC']['multi_day_totals_rows'].split(','))),
-            #                             final_totals_rows = list(map(int, config['QAQC']['final_totals_rows'].split(','))),
-            #                             excluded_rows = list(map(int, config['QAQC']['excluded_rows'].split(','))),
-            #                             excluded_columns = list(map(int, config['QAQC']['excluded_columns'].split(','))),
-            #                             columns_to_check = config['QAQC']['columns_to_check'].split(','),
-            #                             columns_to_check_with_extra_variable = config['QAQC']['columns_to_check_with_extra_variable'].split(','))
+            # Module 5: Quality assessment and Quality Control
+            qa_qc_checked_data = qa_qc(transcribed_table, station, transient_transcription_output_dir, post_QA_QC_transcribed_hydroclimate_data_dir_station, month_filename,
+                                        max_temperature_threshold = float(config['QAQC']['max_temperature_threshold']),
+                                        min_temperature_threshold = float(config['QAQC']['min_temperature_threshold']),
+                                        decimal_places = int(config['QAQC']['decimal_places']),
+                                        uncertainty_margin = float(config['QAQC']['uncertainty_margin']),
+                                        header_rows = int(config['QAQC']['header_rows']),
+                                        multi_day_totals = config.getboolean('QAQC', 'multi_day_totals'),
+                                        multi_day_averages = config.getboolean('QAQC', 'multi_day_averages'),
+                                        max_days_for_multi_day_total = int(config['QAQC']['max_days_for_multi_day_total']),
+                                        multi_day_totals_rows = list(map(int, config['QAQC']['multi_day_totals_rows'].split(','))),
+                                        final_totals_rows = list(map(int, config['QAQC']['final_totals_rows'].split(','))),
+                                        excluded_rows = list(map(int, config['QAQC']['excluded_rows'].split(','))),
+                                        excluded_columns = list(map(int, config['QAQC']['excluded_columns'].split(','))),
+                                        columns_to_check = config['QAQC']['columns_to_check'].split(','),
+                                        columns_to_check_with_extra_variable = config['QAQC']['columns_to_check_with_extra_variable'].split(','))
         
         except Exception as e:
             print(f"Error processing {month_filename}: {e}")
             continue
 
-    # # Module 6: Data formatting and Upload
-    # final_refined_daily_hydroclimate_data_dir_station = os.path.join(final_refined_daily_hydroclimate_data_dir, station)
-    # os.makedirs(final_refined_daily_hydroclimate_data_dir_station, exist_ok=True)
+    # Module 6: Data formatting and Upload
+    final_refined_daily_hydroclimate_data_dir_station = os.path.join(final_refined_daily_hydroclimate_data_dir, station)
+    os.makedirs(final_refined_daily_hydroclimate_data_dir_station, exist_ok=True)
     
-    # data_formatting(post_QA_QC_transcribed_hydroclimate_data_dir_station, final_refined_daily_hydroclimate_data_dir_station, metadata_file_path, station, 
-    #                 date_column = config['DataFormatting']['date_column'].strip(),
-    #                 columns_to_check = config['QAQC']['columns_to_check'].split(','),
-    #                 header_rows = int(config['QAQC']['header_rows']),
-    #                 multi_day_totals = config.getboolean('QAQC', 'multi_day_totals'),
-    #                 multi_day_averages = config.getboolean('QAQC', 'multi_day_averages'),
-    #                 excluded_rows = list(map(int, config['QAQC']['excluded_rows'].split(','))),
-    #                 additional_excluded_rows = list(map(int, config['QAQC']['additional_excluded_rows'].split(','))),
-    #                 final_totals_rows = list(map(int, config['QAQC']['final_totals_rows'].split(','))),
-    #                 uncertainty_margin = float(config['QAQC']['uncertainty_margin']))
+    data_formatting(post_QA_QC_transcribed_hydroclimate_data_dir_station, final_refined_daily_hydroclimate_data_dir_station, metadata_file_path, station, 
+                    date_column = config['DataFormatting']['date_column'].strip(),
+                    columns_to_check = config['QAQC']['columns_to_check'].split(','),
+                    header_rows = int(config['QAQC']['header_rows']),
+                    multi_day_totals = config.getboolean('QAQC', 'multi_day_totals'),
+                    multi_day_averages = config.getboolean('QAQC', 'multi_day_averages'),
+                    excluded_rows = list(map(int, config['QAQC']['excluded_rows'].split(','))),
+                    additional_excluded_rows = list(map(int, config['QAQC']['additional_excluded_rows'].split(','))),
+                    final_totals_rows = list(map(int, config['QAQC']['final_totals_rows'].split(','))),
+                    uncertainty_margin = float(config['QAQC']['uncertainty_margin']))
 
-    # # Extra module: Validation
-    # validation_dir_station = os.path.join(validation_dir, station)
-    # manually_transcribed_data_dir_station = os.path.join(manually_transcribed_data_dir, station)
-    # # Ensure directories exist
-    # os.makedirs(validation_dir_station, exist_ok=True)
-    # os.makedirs(manually_transcribed_data_dir_station, exist_ok=True)
+    # Extra module: Validation
+    validation_dir_station = os.path.join(validation_dir, station)
+    manually_transcribed_data_dir_station = os.path.join(manually_transcribed_data_dir, station)
+    # Ensure directories exist
+    os.makedirs(validation_dir_station, exist_ok=True)
+    os.makedirs(manually_transcribed_data_dir_station, exist_ok=True)
 
-    # validate(manually_transcribed_data_dir_station, post_QA_QC_transcribed_hydroclimate_data_dir_station, validation_dir_station, station,
-    #          date_column = config['DataFormatting']['date_column'].strip(),
-    #          columns_to_check = config['QAQC']['columns_to_check'].split(','),
-    #          header_rows = int(config['QAQC']['header_rows']),
-    #          multi_day_totals = config.getboolean('QAQC', 'multi_day_totals'),
-    #          multi_day_averages = config.getboolean('QAQC', 'multi_day_averages'),
-    #          excluded_rows = list(map(int, config['QAQC']['excluded_rows'].split(','))),
-    #          additional_excluded_rows = list(map(int, config['QAQC']['additional_excluded_rows'].split(','))),
-    #          final_totals_rows = list(map(int, config['QAQC']['final_totals_rows'].split(','))),
-    #          uncertainty_margin = float(config['QAQC']['uncertainty_margin']))
+    validate(manually_transcribed_data_dir_station, post_QA_QC_transcribed_hydroclimate_data_dir_station, validation_dir_station, station,
+             date_column = config['DataFormatting']['date_column'].strip(),
+             columns_to_check = config['QAQC']['columns_to_check'].split(','),
+             header_rows = int(config['QAQC']['header_rows']),
+             multi_day_totals = config.getboolean('QAQC', 'multi_day_totals'),
+             multi_day_averages = config.getboolean('QAQC', 'multi_day_averages'),
+             excluded_rows = list(map(int, config['QAQC']['excluded_rows'].split(','))),
+             additional_excluded_rows = list(map(int, config['QAQC']['additional_excluded_rows'].split(','))),
+             final_totals_rows = list(map(int, config['QAQC']['final_totals_rows'].split(','))),
+             uncertainty_margin = float(config['QAQC']['uncertainty_margin']))
 
 if __name__ == '__main__':
     if run_mode == 'hpc':

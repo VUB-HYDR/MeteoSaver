@@ -37,7 +37,10 @@ def image_preprocessing(image_path):
     #  The method calculates the threshold for small regions (91x91 block size) 
     # of the image using the mean of pixel intensities within that region. The threshold is then adjusted by subtracting 6. 
     # Pixels above the threshold are set to 255 (white), and those below are set to 0 (black).
-    binarized_image = cv2.adaptiveThreshold(image_in_grayscale, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 51,6)
+    binarized_image = cv2.adaptiveThreshold(image_in_grayscale, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 71,6)   # ahd it at (51,6) before   (35,6) was good but make some light text disappear. 
+
+    second_version_binarized_image = cv2.adaptiveThreshold(image_in_grayscale, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 71,6)
+
     
     ## ONLY FOR VISUALIZATION PURPOSES - UNCOMMENT THE LINES BELOW 
     ## Plotting the grayscale images
@@ -53,6 +56,16 @@ def image_preprocessing(image_path):
     # plt.axis('off')
     # # Show the plot
     # plt.show()
+
+    # # Plotting the binarized images
+    # plt.imshow(second_version_binarized_image, cmap='gray')
+    # plt.title('Second binarized Image')
+    # plt.axis('off')
+    # # Show the plot
+    # plt.show()
+
+
+    # return image_in_grayscale, binarized_image, original_image
 
     return image_in_grayscale, binarized_image, original_image
 
