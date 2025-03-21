@@ -739,6 +739,181 @@ def merge_excel_files(file1, file2, output_file, start_row, end_row):
 
 
 
+# def add_missing_boxes(sorted_rows, max_cell_width_threshold=150, max_cell_height_threshold=50, max_columns=24):
+#     """
+#     Adds missing bounding boxes in each row of sorted_rows where gaps are too large, ensuring max columns are 24.
+#     This also handles cases where missing boxes are at the start of the row.
+
+#     Args:
+#         sorted_rows (list): List of lists containing bounding box contours per row.
+#         max_cell_width_threshold (int): Maximum width threshold for a single cell (default 200).
+#         max_cell_height_threshold (int): Maximum height threshold for a single cell (default 50).
+#         max_columns (int): Maximum number of columns in a row (default 24).
+
+#     Returns:
+#         list: Updated sorted_rows with added bounding boxes where necessary.
+#     """
+#     updated_rows = []
+
+#     for row in sorted_rows:
+#         if row == [None]:  # Skip padding rows
+#             updated_rows.append(row)
+#             continue
+
+#         # Extract bounding box coordinates
+#         bounding_boxes = [cv2.boundingRect(c) for c in row]
+        
+#         # Sort boxes left to right
+#         bounding_boxes.sort(key=lambda b: b[0])
+
+#         new_boxes = bounding_boxes.copy()
+#         gaps = []
+
+#         # ** Handle missing boxes at the start of the row **
+#         if new_boxes and new_boxes[0][0] > max_cell_width_threshold:
+#             first_x, first_y, first_w, first_h = new_boxes[0]
+#             num_missing_boxes = min(int(first_x // max_cell_width_threshold), max_columns - len(new_boxes))
+
+#             new_boxes_at_start = []
+#             for i in range(num_missing_boxes):
+#                 new_x = max(0, first_x - (num_missing_boxes - i) * max_cell_width_threshold)
+#                 new_box = (new_x, first_y, max_cell_width_threshold, max_cell_height_threshold)
+#                 new_boxes_at_start.append(new_box)
+
+#             # Prepend missing boxes to the start of the row
+#             new_boxes = new_boxes_at_start + new_boxes
+
+#         # Identify gaps between bounding boxes
+#         for i in range(len(new_boxes) - 1):
+#             x1, y1, w1, h1 = new_boxes[i]
+#             x2, _, _, _ = new_boxes[i + 1]
+#             gap = x2 - (x1 + w1)
+
+#             if gap > max_cell_width_threshold:
+#                 gaps.append((gap, i, x1 + w1, y1))  # Store gap size, index, and exact gap start position
+
+#         # Sort gaps from largest to smallest
+#         gaps.sort(reverse=True, key=lambda g: g[0])
+
+#         # Fill the largest gaps first
+#         for gap, i, gap_start_x, y1 in gaps:
+#             if len(new_boxes) >= max_columns:
+#                 break
+
+#             num_missing_boxes = min(int(gap // max_cell_width_threshold), max_columns - len(new_boxes))
+
+#             new_boxes_in_gap = []
+#             for j in range(num_missing_boxes):
+#                 new_x = gap_start_x + j * max_cell_width_threshold  # Correct placement inside the gap
+#                 new_box = (int(new_x), y1, max_cell_width_threshold, max_cell_height_threshold)
+#                 new_boxes_in_gap.append(new_box)
+
+#                 # Stop adding if max columns reached
+#                 if len(new_boxes) + len(new_boxes_in_gap) >= max_columns:
+#                     break
+
+#             # Insert the new boxes into the correct position
+#             new_boxes[i + 1:i + 1] = new_boxes_in_gap  # Insert in the right place **inside** the gap
+
+#         # Ensure we do not exceed max_columns
+#         new_boxes = new_boxes[:max_columns]
+
+#         # Convert bounding boxes back to contours
+#         updated_contours = [np.array([[x, y], [x + w, y], [x + w, y + h], [x, y + h]], dtype=np.int32) for x, y, w, h in new_boxes]
+        
+#         updated_rows.append(updated_contours)
+
+#     return updated_rows
+
+
+
+def add_missing_boxes(sorted_rows, max_cell_width_threshold=140, max_cell_height_threshold=50, max_columns=24):
+    """
+    Adds missing bounding boxes in each row of sorted_rows where gaps are too large, ensuring max columns are 24.
+    This also handles cases where missing boxes are at the start of the row.
+
+    Args:
+        sorted_rows (list): List of lists containing bounding box contours per row.
+        max_cell_width_threshold (int): Maximum width threshold for a single cell (default 200).
+        max_cell_height_threshold (int): Maximum height threshold for a single cell (default 50).
+        max_columns (int): Maximum number of columns in a row (default 24).
+
+    Returns:
+        list: Updated sorted_rows with added bounding boxes where necessary.
+    """
+    updated_rows = []
+
+    for row in sorted_rows:
+        if row == [None]:  # Skip padding rows
+            updated_rows.append(row)
+            continue
+
+        # Extract bounding box coordinates
+        bounding_boxes = [cv2.boundingRect(c) for c in row]
+        
+        # Sort boxes left to right
+        bounding_boxes.sort(key=lambda b: b[0])
+
+        new_boxes = bounding_boxes.copy()
+        gaps = []
+
+        # ** Handle missing boxes at the start of the row **
+        if new_boxes and new_boxes[0][0] > max_cell_width_threshold:
+            first_x, first_y, first_w, first_h = new_boxes[0]
+            num_missing_boxes = min(int(first_x // max_cell_width_threshold), max_columns - len(new_boxes))
+
+            new_boxes_at_start = []
+            for i in range(num_missing_boxes):
+                new_x = max(0, first_x - (num_missing_boxes - i) * max_cell_width_threshold)
+                new_box = (new_x, first_y, max_cell_width_threshold, max_cell_height_threshold)
+                new_boxes_at_start.append(new_box)
+
+            # Prepend missing boxes to the start of the row
+            new_boxes = new_boxes_at_start + new_boxes
+
+        # Identify gaps between bounding boxes
+        for i in range(len(new_boxes) - 1):
+            x1, y1, w1, h1 = new_boxes[i]
+            x2, _, _, _ = new_boxes[i + 1]
+            gap = x2 - (x1 + w1)
+
+            if gap > max_cell_width_threshold:
+                gaps.append((gap, i, x1 + w1, y1))  # Store gap size, index, and exact gap start position
+
+        # Sort gaps from largest to smallest
+        gaps.sort(reverse=True, key=lambda g: g[0])
+
+        # Fill the largest gaps first
+        for gap, i, gap_start_x, y1 in gaps:
+            if len(new_boxes) >= max_columns:
+                break
+
+            num_missing_boxes = min(int(gap // max_cell_width_threshold), max_columns - len(new_boxes))
+
+            new_boxes_in_gap = []
+            for j in range(num_missing_boxes):
+                new_x = gap_start_x + j * max_cell_width_threshold  # Correct placement inside the gap
+                new_box = (int(new_x), y1, max_cell_width_threshold, max_cell_height_threshold)
+                new_boxes_in_gap.append(new_box)
+
+                # Stop adding if max columns reached
+                if len(new_boxes) + len(new_boxes_in_gap) >= max_columns:
+                    break
+
+            # Insert the new boxes into the correct position
+            new_boxes[i + 1:i + 1] = new_boxes_in_gap  # Insert in the right place **inside** the gap
+
+        # Ensure we do not exceed max_columns
+        new_boxes = new_boxes[:max_columns]
+
+        # Convert bounding boxes back to contours
+        updated_contours = [np.array([[x, y], [x + w, y], [x + w, y + h], [x, y + h]], dtype=np.int32) for x, y, w, h in new_boxes]
+        
+        updated_rows.append(updated_contours)
+
+    return updated_rows
+
+
 def transcription(detected_table_cells, ocr_model, tesseract_path, transient_transcription_output_dir, pre_QA_QC_transcribed_hydroclimate_data_dir_station, station, month_filename, no_of_rows, no_of_columns, no_of_rows_including_headers):
     '''
     Performs OCR (Optical Character Recognition) on detected table cells from a pre-processed image 
@@ -858,6 +1033,8 @@ def transcription(detected_table_cells, ocr_model, tesseract_path, transient_tra
             # Ensure we don't disturb the last two rows
             sorted_rows = sorted_rows[:-2] + [[None]] * missing_rows + sorted_rows[-2:]
 
+        sorted_rows = add_missing_boxes(sorted_rows)  # Add missing boxes per row where there are gaps
+
         ## FOR ILLUSTRATION PURPOSES: Uncomment the following lines if you want to see an example of how the sorting function works. This is for illustration purposes only and not necessary for the main functionality of the script. 
         
         # Create a copy of the image for visualization
@@ -911,38 +1088,63 @@ def transcription(detected_table_cells, ocr_model, tesseract_path, transient_tra
             
             for contour in row:
 
-                x, y, w, h = cv2.boundingRect(contour)              
+                x, y, w, h = cv2.boundingRect(contour)
 
-                # Calculate a factor to modify the bounding box area (e.g., in this case 5% of width and 25% of height)
-                increase_factor_width = 0.2  # Modify this factor as needed
-                increase_factor_height = 0.3 # Modify this factor as needed
-            
-                # x += int(w * factor_width)  # Increase width
-                # y -= int(h * increase_factor_height)  # Increase height
-                # w -= int(1 * w * factor_width)  # Decrease width a little to avoid vertical lines that may be transcribed as the number 1 yet they aren't a number
-                # h += int(2 * h * increase_factor_height)  # Increase height
+                # Define increase factors for bounding box modification
+                increase_factor_width = 0.07  # Increase width by 20%
+                increase_factor_height = 0.25  # Increase height by 25%
 
-                # Expand width
+                # Expand width while keeping it centered
                 new_w = int(w * (1 + increase_factor_width))  # Increase width
-                x = max(0, x - (new_w - w) // 2)  # Center the new width, ensure x is ≥ 0
+                x = max(0, x - (new_w - w) // 2)  # Adjust x to keep center fixed
 
-                # Expand height
-                new_h = int(h * (1 + increase_factor_height * 2))  # Increase height on both sides
-                y = max(0, y - (new_h - h) // 2)  # Center the new height, ensure y is ≥ 0
-                
-                ### FOR ILLUSTRATION PURPOSES: This line below is about drawing a rectangle on the image with the shape of the bounding box. Its not needed for the OCR. This is only for debugging purposes.
-                # image_with_all_bounding_boxes = cv2.rectangle(image_with_all_bounding_boxes, (x, y), (x + w, y + h), (0, 255, 0), 5)
+                # Expand height symmetrically
+                new_h = int(h * (1 + increase_factor_height * 2))  # Increase height
+                y = max(0, y - (new_h - h) // 2)  # Adjust y to keep center fixed
 
-                # # Draw the adjusted ROI on the output image
-                # cv2.rectangle(ROIs_image, (x, y), (x + w, y + h), (0, 255, 0), 5)  # (0, 255, 0) represent a green color for ROI, and 5 is the thicnkess of the ROI bounbdary boxes
+                # Ensure bounding box remains within valid image bounds
+                x = max(0, x)
+                y = max(0, y)
+                w = max(1, new_w)  # Avoid zero or negative width
+                h = max(1, new_h)  # Avoid zero or negative height
+
+                 # Draw bounding box on the visualization image
+                cv2.rectangle(ROIs_image, (x, y), (x + w, y + h), (0, 0, 255), 3)
+
+                # OCR
+                # Crop each cell using the bounding rectangle coordinates
+                ROI = table_copy[y:y+h, x:x+w]  # Ensure consistency with visualization bounding boxes
+
+                # # Calculate a factor to modify the bounding box area (e.g., in this case 5% of width and 25% of height)
+                # increase_factor_width = 0.2  # Modify this factor as needed
+                # increase_factor_height = 0.3 # Modify this factor as needed
+            
+                # # x += int(w * factor_width)  # Increase width
+                # # y -= int(h * increase_factor_height)  # Increase height
+                # # w -= int(1 * w * factor_width)  # Decrease width a little to avoid vertical lines that may be transcribed as the number 1 yet they aren't a number
+                # # h += int(2 * h * increase_factor_height)  # Increase height
+
+                # # Expand width
+                # new_w = int(w * (1 + increase_factor_width))  # Increase width
+                # x = max(0, x - (new_w - w) // 2)  # Center the new width, ensure x is ≥ 0
+
+                # # Expand height
+                # new_h = int(h * (1 + increase_factor_height * 2))  # Increase height on both sides
+                # y = max(0, y - (new_h - h) // 2)  # Center the new height, ensure y is ≥ 0
                 
-                # Draw the updated bounding box
-                cv2.rectangle(ROIs_image, (x, y), (x + new_w, y + new_h), (0, 255, 0), 4)
+                # ### FOR ILLUSTRATION PURPOSES: This line below is about drawing a rectangle on the image with the shape of the bounding box. Its not needed for the OCR. This is only for debugging purposes.
+                # # image_with_all_bounding_boxes = cv2.rectangle(image_with_all_bounding_boxes, (x, y), (x + w, y + h), (0, 255, 0), 5)
+
+                # # # Draw the adjusted ROI on the output image
+                # # cv2.rectangle(ROIs_image, (x, y), (x + w, y + h), (0, 255, 0), 5)  # (0, 255, 0) represent a green color for ROI, and 5 is the thicnkess of the ROI bounbdary boxes
+                
+                # # Draw the updated bounding box
+                # cv2.rectangle(ROIs_image, (x, y), (x + new_w, y + new_h), (0, 255, 0), 4)
 
                 
                 # OCR
                 # Crop each cell using the bounding rectangle coordinates
-                ROI = table_copy[y:y+new_h, x:x+new_w] # Here, the Region Of Interest (ROI) represent the cells (boundary boxes) clipped out from the table image as a prerequiste for text recogniton by the Optical Character Recognition/Handwritten Text Recognition (OCR/HTR) model
+                # ROI = table_copy[y:y+new_h, x:x+new_w] # Here, the Region Of Interest (ROI) represent the cells (boundary boxes) clipped out from the table image as a prerequiste for text recogniton by the Optical Character Recognition/Handwritten Text Recognition (OCR/HTR) model
                 
                 if ROI.size != 0:  # Check if the height and width are greater than zero. This is to prevent invalid ROIs
                     
@@ -953,7 +1155,7 @@ def transcription(detected_table_cells, ocr_model, tesseract_path, transient_tra
                     cv2.imwrite(save_path_detected_text, ROI)
                     if ocr_model == 'Tesseract-OCR':
                     # Using Tesseract-OCR
-                        ocr_result = pytesseract.image_to_string(save_path_detected_text, lang='cobecore-V6', config='--oem 1 --psm 7 -c tessedit_char_whitelist=0123456789 -c segment_penalty_garbage=10') # Just added -c tessedit_char_whitelist=0123456789 to really limit the text type/values detected
+                        ocr_result = pytesseract.image_to_string(save_path_detected_text, lang='cobecore-V6', config='--oem 1 --psm 7 -c tessedit_char_whitelist=0123456789') # Just added -c tessedit_char_whitelist=0123456789 to really limit the text type/values detected
 
                         # Here's a brief explanation of some Page Segmentation Modes (PSMs) available in Tesseract:
                         # 0: Orientation and script detection (OSD) only.

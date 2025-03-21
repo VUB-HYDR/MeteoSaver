@@ -8,6 +8,7 @@ from openpyxl.styles import Alignment
 from openpyxl.utils.dataframe import dataframe_to_rows
 import pandas as pd
 from statistics import mean
+import re
 
 # Setting up the current working directory; for both the input and output folders
 cwd = os.getcwd()
@@ -196,6 +197,22 @@ def save_intermediate_version(workbook, stage, transient_transcription_output_di
     # To save intermediate versions of the trnascribed file throughout the different QA/QC steps 
     intermediate_file = os.path.join(transient_transcription_output_dir_station, f'{month_filename}_stage_{stage}.xlsx')
     workbook.save(intermediate_file)
+
+
+
+def correct_80s_misreads(value):
+    """
+    If a value is in the 80s (80-89 range), replace the leading '8' with '3'.
+    Works for both integers and decimals.
+    """
+    if isinstance(value, (int, float)):  # If it's a number, convert to string for checking
+        value_str = str(value)
+        if re.match(r"^8\d(\.\d+)?$", value_str):  # Match 80-89, including decimals
+            corrected_value = "3" + value_str[1:]  # Replace the '8' with '3'
+            return float(corrected_value)  # Convert back to float
+    elif isinstance(value, str) and re.match(r"^8\d(\.\d+)?$", value.strip()):  
+        return float("3" + value.strip()[1:])  # Ensure it converts to float after fixing
+    return value  # Return original if no correction needed
 
     
 def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_QA_QC_transcribed_hydroclimate_data_dir_station, month_filename, max_temperature_threshold, min_temperature_threshold, decimal_places, uncertainty_margin, header_rows, multi_day_totals, multi_day_averages, max_days_for_multi_day_total, multi_day_totals_rows, final_totals_rows, excluded_rows, excluded_columns, columns_to_check, columns_to_check_with_extra_variable):
@@ -655,6 +672,55 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
     save_intermediate_version(new_workbook, "daily_max_min_avg_temp", transient_transcription_output_dir_station, month_filename)
     
 
+    # Check the cells by rows to ensure that Min temp threshold < Temp < Max Temp threshold
+    for row in new_worksheet.iter_rows(min_row=header_rows+1, max_row=new_worksheet.max_row, min_col=min_col, max_col=max_col):
+        if row[0].row in excluded_rows:
+            continue 
+        
+        # Create a dictionary to map column names (D, E, F, etc.) to the cell values
+        row_cells = {columns_to_check[i]: row[columns_to_check_indices[i] - min_col] for i in range(len(columns_to_check))}
+
+        # Now you can access the cells dynamically using the column names
+        D = row_cells.get('D')  # Max Temp
+        E = row_cells.get('E')  # Min Temp
+        F = row_cells.get('F')  # Average Temp
+
+        # Check if the highlighted cells have values
+        D_value_exists = is_string_convertible_to_float(D.value)
+        E_value_exists = is_string_convertible_to_float(E.value)
+        F_value_exists = is_string_convertible_to_float(F.value)
+
+        if D_value_exists:
+            corrected_D_value = correct_80s_misreads(D.value)
+            D.value = corrected_D_value  # Update cell value if corrected
+            D_value = float(D.value)
+            if not (min_temperature_threshold <= D_value <= max_temperature_threshold): 
+                highlight_change('CC3300', D, new_version_of_file)  # Dark Red. Highlight to show that transcribed temp value may not be correct
+
+        if E_value_exists:
+            corrected_E_value = correct_80s_misreads(E.value)
+            E.value = corrected_E_value  # Update cell value if corrected
+            E_value = float(E.value)
+            if not (min_temperature_threshold <= E_value <= max_temperature_threshold):
+                highlight_change('CC3300', E, new_version_of_file)  # Dark Red. Highlight to show that transcribed temp value may not be correct
+        
+        if F_value_exists:
+            corrected_F_value = correct_80s_misreads(F.value)
+            F.value = corrected_F_value  # Update cell value if corrected
+            F_value = float(F.value)
+            if not (min_temperature_threshold <= F_value <= max_temperature_threshold):
+                highlight_change('CC3300', F, new_version_of_file)  # Dark Red. Highlight to show that transcribed temp value may not be correct
+
+    # Save the workbook after all changes
+    new_workbook.save(new_version_of_file)
+    # Save intermediate version after rechecking the temperature thresholds for the transcribed daily values of maximum, minimum amd average.
+    save_intermediate_version(new_workbook, "correct_values", transient_transcription_output_dir_station, month_filename)
+    
+
+
+
+
+
     # Check of Max, Min and Avg Temperatures using the Amplitude (Ampl.) commonly known as the Diurnal Temperarure Range. This is column G of our worksheets
     # where: Ampl. = Max - Min ..................... (1)
     #        Ampl. = 2Avg - 2Min ................... (2)
@@ -773,16 +839,22 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
         F_value_exists = is_string_convertible_to_float(F.value)
 
         if D_value_exists:
+            corrected_D_value = correct_80s_misreads(D.value)
+            D.value = corrected_D_value  # Update cell value if corrected
             D_value = float(D.value)
             if not (min_temperature_threshold <= D_value <= max_temperature_threshold): 
                 highlight_change('CC3300', D, new_version_of_file)  # Dark Red. Highlight to show that transcribed temp value may not be correct
 
         if E_value_exists:
+            corrected_E_value = correct_80s_misreads(E.value)
+            E.value = corrected_E_value  # Update cell value if corrected
             E_value = float(E.value)
             if not (min_temperature_threshold <= E_value <= max_temperature_threshold):
                 highlight_change('CC3300', E, new_version_of_file)  # Dark Red. Highlight to show that transcribed temp value may not be correct
         
         if F_value_exists:
+            corrected_F_value = correct_80s_misreads(F.value)
+            F.value = corrected_F_value  # Update cell value if corrected
             F_value = float(F.value)
             if not (min_temperature_threshold <= F_value <= max_temperature_threshold):
                 highlight_change('CC3300', F, new_version_of_file)  # Dark Red. Highlight to show that transcribed temp value may not be correct

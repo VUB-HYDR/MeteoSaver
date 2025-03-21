@@ -784,7 +784,7 @@ def table_and_cell_detection(image_in_grayscale, binarized_image, original_image
     # table_img_bin = reduce_noise(table_img_bin)
 
     # Remove only long vertical lines while keeping text intact
-    # table_img_bin = remove_vertical_lines(table_img_bin)
+    table_img_bin = remove_vertical_lines(table_img_bin)
 
 
 
@@ -824,7 +824,7 @@ def table_and_cell_detection(image_in_grayscale, binarized_image, original_image
     filtered_image = np.zeros_like(image_without_lines_noise_removed)
 
     # Set thresholds
-    ASPECT_RATIO_THRESHOLD = 10  # If Width / Height > 4 (was 4 before this new check), it's considered horizontal noise
+    ASPECT_RATIO_THRESHOLD = 4  # If Width / Height > 4 (was 4 before this new check), it's considered horizontal noise
     HEIGHT_THRESHOLD = 5  # Remove any blobs with height less than this
     PROXIMITY_THRESHOLD = 5  # Maximum distance (in pixels) to consider a dot "close" to a number
 
@@ -841,7 +841,7 @@ def table_and_cell_detection(image_in_grayscale, binarized_image, original_image
         aspect_ratio = w / h  # Compute aspect ratio
 
         # Keep only real text (numbers) as reference components
-        if area > 50 and aspect_ratio < ASPECT_RATIO_THRESHOLD and h > HEIGHT_THRESHOLD:   # was 100 before this check, then i tried 50
+        if area > 100 and aspect_ratio < ASPECT_RATIO_THRESHOLD and h > HEIGHT_THRESHOLD:   # was 100 before this check, then i tried 50
             text_components.append((x, y, w, h))
             filtered_image[labels == i] = 255  # Keep text
         
@@ -904,21 +904,21 @@ def table_and_cell_detection(image_in_grayscale, binarized_image, original_image
     # plt.title('applied horizontal_kernel')
     # plt.show() 
 
-    # # ** delete small horizontal lines.
-    # # Create a blank mask for horizontal lines
-    # horizontal_line_mask = np.zeros_like(image_with_word_blobs)
+    # ** delete small horizontal lines.
+    # Create a blank mask for horizontal lines
+    horizontal_line_mask = np.zeros_like(image_with_word_blobs)
 
-    # # Draw **thin** horizontal lines at detected y-positions (but not subtracting yet)
-    # for y, x_start, x_end in horizontal_lines:
-    #     cv2.line(horizontal_line_mask, (x_start - 15, y), (x_end + 15, y), 255, thickness=3)  # Initially very thin
+    # Draw **thin** horizontal lines at detected y-positions (but not subtracting yet)
+    for y, x_start, x_end in horizontal_lines:
+        cv2.line(horizontal_line_mask, (x_start - 15, y), (x_end + 15, y), 255, thickness=3)  # Initially very thin
 
     # # # Show the initial thin line mask
     # # plt.imshow(horizontal_line_mask, cmap="gray")
     # # plt.title("Initial Thin Line Mask")
     # # plt.show()
 
-    # # **Step 3: Subtract the dilated lines from the filtered image**
-    # image_with_word_blobs = cv2.subtract(image_with_word_blobs, horizontal_line_mask)
+    # **Step 3: Subtract the dilated lines from the filtered image**
+    image_with_word_blobs = cv2.subtract(image_with_word_blobs, horizontal_line_mask)
 
     # # Show the final image after subtraction
     # plt.imshow(image_with_word_blobs, cmap="gray")
@@ -1023,16 +1023,34 @@ def table_and_cell_detection(image_in_grayscale, binarized_image, original_image
         if contour is not None and len(contour) > 0:
             x, y, w, h = cv2.boundingRect(contour)
 
-            # Adjust bounding box dimensions
-            increase_factor_width = 0.05
-            increase_factor_height = 0.25
-            x += int(w * increase_factor_width) # Increase width
-            y -= int(h * increase_factor_height) # Increase height
-            w -= int(w * increase_factor_width) # Decrease width a little to avoid vertical lines that may be transcribed as the number 1 yet they aren't a number
-            h += int(h * increase_factor_height * 2) # Increase height
+            # # Adjust bounding box dimensions
+            # increase_factor_width = 0.05
+            # increase_factor_height = 0.25
+            # x += int(w * increase_factor_width) # Increase width
+            # y -= int(h * increase_factor_height) # Increase height
+            # w -= int(w * increase_factor_width) # Decrease width a little to avoid vertical lines that may be transcribed as the number 1 yet they aren't a number
+            # h += int(h * increase_factor_height * 2) # Increase height
+
+            # Define increase factors for bounding box modification
+            increase_factor_width = 0.07  # Increase width by 20%
+            increase_factor_height = 0.25  # Increase height by 25%
+
+            # Expand width while keeping it centered
+            new_w = int(w * (1 + increase_factor_width))  # Increase width
+            x = max(0, x - (new_w - w) // 2)  # Adjust x to keep center fixed
+
+            # Expand height symmetrically
+            new_h = int(h * (1 + increase_factor_height * 2))  # Increase height
+            y = max(0, y - (new_h - h) // 2)  # Adjust y to keep center fixed
+
+            # Ensure bounding box remains within valid image bounds
+            x = max(0, x)
+            y = max(0, y)
+            w = max(1, new_w)  # Avoid zero or negative width
+            h = max(1, new_h)  # Avoid zero or negative height
             
             # Draw the bounding box directly on the overlay image
-            cv2.rectangle(table_img_bin_overlayed_with_contours, (x, y), (x + w, y + h), (0, 0, 255), 4)
+            cv2.rectangle(table_img_bin_overlayed_with_contours, (x, y), (x + w, y + h), (0, 0, 255), 3)
 
     # # Display the image with bounding boxes using matplotlib
     # plt.imshow(table_img_bin_overlayed_with_contours)
@@ -1110,12 +1128,12 @@ def table_and_cell_detection(image_in_grayscale, binarized_image, original_image
 
 
 
-    # # Apply the same dot removal to the **binarized image**
-    # table_img_bin[dots_to_remove == 255] = 255  # Set dots to white
+    # Apply the same dot removal to the **binarized image**
+    table_img_bin[dots_to_remove == 255] = 255  # Set dots to white
 
-    # # Ensure the image is strictly binary
-    # table_img_bin[table_img_bin > 127] = 255  # Set everything above 127 to white
-    # table_img_bin[table_img_bin <= 127] = 0   # Set everything below 127 to black
+    # Ensure the image is strictly binary
+    table_img_bin[table_img_bin > 127] = 255  # Set everything above 127 to white
+    table_img_bin[table_img_bin <= 127] = 0   # Set everything below 127 to black
 
 
     # Save the binary image for use later in detecting text
