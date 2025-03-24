@@ -590,6 +590,26 @@ def draw_row_markers_and_boxes(image, rows, colors):
         # Draw bounding boxes for each contour in the row
         for contour in row:
             x, y, w, h = cv2.boundingRect(contour)
+
+            # Define increase factors for bounding box modification
+            increase_factor_width = 0.07  # 
+            increase_factor_height = 0.35  # 
+
+            # Expand width while keeping it centered
+            new_w = int(w * (1 + increase_factor_width))  # Increase width
+            x = max(0, x - (new_w - w) // 2)  # Adjust x to keep center fixed
+
+            # Expand height symmetrically
+            new_h = int(h * (1 + increase_factor_height * 2))  # Increase height
+            y = max(0, y - (new_h - h) // 2)  # Adjust y to keep center fixed
+
+            # Ensure bounding box remains within valid image bounds
+            x = max(0, x)
+            y = max(0, y)
+            w = max(1, new_w)  # Avoid zero or negative width
+            h = max(1, new_h)  # Avoid zero or negative height
+
+            # Draw bounding box on the visualization image
             cv2.rectangle(image, (x, y), (x + w, y + h), color, 2)
 
 
@@ -827,20 +847,94 @@ def merge_excel_files(file1, file2, output_file, start_row, end_row):
 
 
 
-def add_missing_boxes(sorted_rows, max_cell_width_threshold=140, max_cell_height_threshold=50, max_columns=24):
-    """
-    Adds missing bounding boxes in each row of sorted_rows where gaps are too large, ensuring max columns are 24.
-    This also handles cases where missing boxes are at the start of the row.
+# def add_missing_boxes(sorted_rows, max_cell_width_threshold=120, max_cell_height_threshold=50, max_columns=24):
+#     """
+#     Adds missing bounding boxes in each row of sorted_rows where gaps are too large, ensuring max columns are 24.
+#     This also handles cases where missing boxes are at the start of the row.
 
-    Args:
-        sorted_rows (list): List of lists containing bounding box contours per row.
-        max_cell_width_threshold (int): Maximum width threshold for a single cell (default 200).
-        max_cell_height_threshold (int): Maximum height threshold for a single cell (default 50).
-        max_columns (int): Maximum number of columns in a row (default 24).
+#     Args:
+#         sorted_rows (list): List of lists containing bounding box contours per row.
+#         max_cell_width_threshold (int): Maximum width threshold for a single cell (default 200).
+#         max_cell_height_threshold (int): Maximum height threshold for a single cell (default 50).
+#         max_columns (int): Maximum number of columns in a row (default 24).
 
-    Returns:
-        list: Updated sorted_rows with added bounding boxes where necessary.
-    """
+#     Returns:
+#         list: Updated sorted_rows with added bounding boxes where necessary.
+#     """
+#     updated_rows = []
+
+#     for row in sorted_rows:
+#         if row == [None]:  # Skip padding rows
+#             updated_rows.append(row)
+#             continue
+
+#         # Extract bounding box coordinates
+#         bounding_boxes = [cv2.boundingRect(c) for c in row]
+        
+#         # Sort boxes left to right
+#         bounding_boxes.sort(key=lambda b: b[0])
+
+#         new_boxes = bounding_boxes.copy()
+#         gaps = []
+
+#         # ** Handle missing boxes at the start of the row **
+#         if new_boxes and new_boxes[0][0] > max_cell_width_threshold:
+#             first_x, first_y, first_w, first_h = new_boxes[0]
+#             num_missing_boxes = min(int(first_x // max_cell_width_threshold), max_columns - len(new_boxes))
+
+#             new_boxes_at_start = []
+#             for i in range(num_missing_boxes):
+#                 new_x = max(0, first_x - (num_missing_boxes - i) * max_cell_width_threshold)
+#                 new_box = (new_x, first_y, max_cell_width_threshold, max_cell_height_threshold)
+#                 new_boxes_at_start.append(new_box)
+
+#             # Prepend missing boxes to the start of the row
+#             new_boxes = new_boxes_at_start + new_boxes
+
+#         # Identify gaps between bounding boxes
+#         for i in range(len(new_boxes) - 1):
+#             x1, y1, w1, h1 = new_boxes[i]
+#             x2, _, _, _ = new_boxes[i + 1]
+#             gap = x2 - (x1 + w1)
+
+#             if gap > max_cell_width_threshold:
+#                 gaps.append((gap, i, x1 + w1, y1))  # Store gap size, index, and exact gap start position
+
+#         # Sort gaps from largest to smallest
+#         gaps.sort(reverse=True, key=lambda g: g[0])
+
+#         # Fill the largest gaps first
+#         for gap, i, gap_start_x, y1 in gaps:
+#             if len(new_boxes) >= max_columns:
+#                 break
+
+#             num_missing_boxes = min(int(gap // max_cell_width_threshold), max_columns - len(new_boxes))
+
+#             new_boxes_in_gap = []
+#             for j in range(num_missing_boxes):
+#                 new_x = gap_start_x + j * max_cell_width_threshold  # Correct placement inside the gap
+#                 new_box = (int(new_x), y1, max_cell_width_threshold, max_cell_height_threshold)
+#                 new_boxes_in_gap.append(new_box)
+
+#                 # Stop adding if max columns reached
+#                 if len(new_boxes) + len(new_boxes_in_gap) >= max_columns:
+#                     break
+
+#             # Insert the new boxes into the correct position
+#             new_boxes[i + 1:i + 1] = new_boxes_in_gap  # Insert in the right place **inside** the gap
+
+#         # Ensure we do not exceed max_columns
+#         new_boxes = new_boxes[:max_columns]
+
+#         # Convert bounding boxes back to contours
+#         updated_contours = [np.array([[x, y], [x + w, y], [x + w, y + h], [x, y + h]], dtype=np.int32) for x, y, w, h in new_boxes]
+        
+#         updated_rows.append(updated_contours)
+
+#     return updated_rows
+
+
+def add_missing_boxes(sorted_rows, max_cell_width_threshold=120, max_cell_height_threshold=50, max_columns=24):
     updated_rows = []
 
     for row in sorted_rows:
@@ -848,16 +942,13 @@ def add_missing_boxes(sorted_rows, max_cell_width_threshold=140, max_cell_height
             updated_rows.append(row)
             continue
 
-        # Extract bounding box coordinates
         bounding_boxes = [cv2.boundingRect(c) for c in row]
-        
-        # Sort boxes left to right
         bounding_boxes.sort(key=lambda b: b[0])
 
         new_boxes = bounding_boxes.copy()
         gaps = []
 
-        # ** Handle missing boxes at the start of the row **
+        # Handle missing boxes at the start of the row
         if new_boxes and new_boxes[0][0] > max_cell_width_threshold:
             first_x, first_y, first_w, first_h = new_boxes[0]
             num_missing_boxes = min(int(first_x // max_cell_width_threshold), max_columns - len(new_boxes))
@@ -868,50 +959,49 @@ def add_missing_boxes(sorted_rows, max_cell_width_threshold=140, max_cell_height
                 new_box = (new_x, first_y, max_cell_width_threshold, max_cell_height_threshold)
                 new_boxes_at_start.append(new_box)
 
-            # Prepend missing boxes to the start of the row
             new_boxes = new_boxes_at_start + new_boxes
 
-        # Identify gaps between bounding boxes
         for i in range(len(new_boxes) - 1):
             x1, y1, w1, h1 = new_boxes[i]
             x2, _, _, _ = new_boxes[i + 1]
             gap = x2 - (x1 + w1)
 
             if gap > max_cell_width_threshold:
-                gaps.append((gap, i, x1 + w1, y1))  # Store gap size, index, and exact gap start position
+                gaps.append((gap, i, x1 + w1, y1))
 
-        # Sort gaps from largest to smallest
         gaps.sort(reverse=True, key=lambda g: g[0])
 
-        # Fill the largest gaps first
         for gap, i, gap_start_x, y1 in gaps:
             if len(new_boxes) >= max_columns:
                 break
 
             num_missing_boxes = min(int(gap // max_cell_width_threshold), max_columns - len(new_boxes))
 
+            total_box_width = num_missing_boxes * max_cell_width_threshold
+            start_x = gap_start_x + (gap - total_box_width) / 2
+
             new_boxes_in_gap = []
             for j in range(num_missing_boxes):
-                new_x = gap_start_x + j * max_cell_width_threshold  # Correct placement inside the gap
+                new_x = start_x + j * max_cell_width_threshold
                 new_box = (int(new_x), y1, max_cell_width_threshold, max_cell_height_threshold)
                 new_boxes_in_gap.append(new_box)
 
-                # Stop adding if max columns reached
                 if len(new_boxes) + len(new_boxes_in_gap) >= max_columns:
                     break
 
-            # Insert the new boxes into the correct position
-            new_boxes[i + 1:i + 1] = new_boxes_in_gap  # Insert in the right place **inside** the gap
+            new_boxes[i + 1:i + 1] = new_boxes_in_gap
 
-        # Ensure we do not exceed max_columns
         new_boxes = new_boxes[:max_columns]
 
-        # Convert bounding boxes back to contours
-        updated_contours = [np.array([[x, y], [x + w, y], [x + w, y + h], [x, y + h]], dtype=np.int32) for x, y, w, h in new_boxes]
-        
+        updated_contours = [
+            np.array([[x, y], [x + w, y], [x + w, y + h], [x, y + h]], dtype=np.int32)
+            for x, y, w, h in new_boxes
+        ]
         updated_rows.append(updated_contours)
 
     return updated_rows
+
+
 
 
 def transcription(detected_table_cells, ocr_model, tesseract_path, transient_transcription_output_dir, pre_QA_QC_transcribed_hydroclimate_data_dir_station, station, month_filename, no_of_rows, no_of_columns, no_of_rows_including_headers):
@@ -1092,7 +1182,7 @@ def transcription(detected_table_cells, ocr_model, tesseract_path, transient_tra
 
                 # Define increase factors for bounding box modification
                 increase_factor_width = 0.07  # Increase width by 20%
-                increase_factor_height = 0.25  # Increase height by 25%
+                increase_factor_height = 0.35  # Increase height by 25%
 
                 # Expand width while keeping it centered
                 new_w = int(w * (1 + increase_factor_width))  # Increase width
