@@ -1,0 +1,44 @@
+SEF	1.0.0
+ID	209
+Name	Loeka-Bumba
+Lat	2.25
+Lon	22.8167
+Alt	430.0
+Source	Institut National pour l'Etude et la Recherche Agronomiques
+Link	
+Vbl	ta
+Stat	point
+Units	C
+Meta	Observer=  | QC software = MeteoSaver v1.0 | Note = Transcription software: MeteoSaver v1.0 (https://github.com/VUB-HYDR/MeteoSaver)
+Year	Month	Day	Hour	Minute	Period	Value	Meta
+1968	10	1	18	0	0	27.2	
+1968	10	2	18	0	0	27.7	
+1968	10	3	18	0	0	20.6	
+1968	10	4	18	0	0	27.6	
+1968	10	5	18	0	0	24.0	
+1968	10	6	18	0	0	25.5	
+1968	10	7	18	0	0	24.7	
+1968	10	8	18	0	0	24.7	
+1968	10	9	18	0	0	21.9	
+1968	10	10	18	0	0	24.5	
+1968	10	11	18	0	0	26.0	
+1968	10	12	18	0	0	25.8	
+1968	10	13	18	0	0	24.9	
+1968	10	14	18	0	0	24.3	
+1968	10	15	18	0	0	21.5	
+1968	10	16	18	0	0	NaN	
+1968	10	17	18	0	0	NaN	
+1968	10	18	18	0	0	NaN	
+1968	10	19	18	0	0	NaN	
+1968	10	20	18	0	0	25.5	
+1968	10	21	18	0	0	NaN	
+1968	10	22	18	0	0	NaN	
+1968	10	23	18	0	0	NaN	
+1968	10	24	18	0	0	NaN	
+1968	10	25	18	0	0	NaN	
+1968	10	26	18	0	0	NaN	
+1968	10	27	18	0	0	NaN	
+1968	10	28	18	0	0	NaN	
+1968	10	29	18	0	0	NaN	
+1968	10	30	18	0	0	NaN	
+1968	10	31	18	0	0	NaN	
