@@ -567,7 +567,7 @@ def plot_comparison(manual_df, post_processed_df, output_folder_path, station, p
 
 
 
-def validate(manually_transcribed_data_dir_station, postprocessed_data_dir_station, output_folder_path, station, date_column, columns_to_check, header_rows, multi_day_totals, multi_day_averages, excluded_rows, additional_excluded_rows, final_totals_rows, uncertainty_margin):
+def validate(manually_transcribed_data_dir_station, postprocessed_data_dir_station, output_folder_path, station, date_column, daily_temperature_columns, header_rows, multi_day_totals, multi_day_averages, excluded_rows, additional_excluded_rows, final_totals_rows, uncertainty_margin):
     """
     Validate and compare manually transcribed data with post-processed data, generating accuracy metrics and visualizations.
 
@@ -640,9 +640,9 @@ def validate(manually_transcribed_data_dir_station, postprocessed_data_dir_stati
 
         # Load data
         # Manually transcribed data
-        manual_df = select_and_convert_manually_transcribed_data(manual_filepath, date_column, columns_to_check, header_rows, multi_day_totals, multi_day_averages, excluded_rows, additional_excluded_rows, final_totals_rows)
+        manual_df = select_and_convert_manually_transcribed_data(manual_filepath, date_column, daily_temperature_columns, header_rows, multi_day_totals, multi_day_averages, excluded_rows, additional_excluded_rows, final_totals_rows)
         # Automatically transcribed data
-        post_processed_df = select_and_convert_postprocessed_data(post_processed_filepath, date_column, columns_to_check, header_rows, multi_day_totals, multi_day_averages, excluded_rows, additional_excluded_rows, final_totals_rows)
+        post_processed_df = select_and_convert_postprocessed_data(post_processed_filepath, date_column, daily_temperature_columns, header_rows, multi_day_totals, multi_day_averages, excluded_rows, additional_excluded_rows, final_totals_rows)
 
         # # Convert temperature columns to numeric, coerce errors to NaN
         # manual_df['Max_Temperature'] = pd.to_numeric(manual_df['Max_Temperature'], errors='coerce')

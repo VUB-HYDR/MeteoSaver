@@ -110,8 +110,11 @@ def process_station(station):
                                         final_totals_rows = list(map(int, config['QAQC']['final_totals_rows'].split(','))),
                                         excluded_rows = list(map(int, config['QAQC']['excluded_rows'].split(','))),
                                         excluded_columns = list(map(int, config['QAQC']['excluded_columns'].split(','))),
-                                        columns_to_check = config['QAQC']['columns_to_check'].split(','),
-                                        columns_to_check_with_extra_variable = config['QAQC']['columns_to_check_with_extra_variable'].split(','))
+                                        daily_temperature_columns = config['QAQC']['daily_temperature_columns'].split(','),
+                                        daily_temperature_columns_and_diurnal_temperature_range = config['QAQC']['daily_temperature_columns_and_diurnal_temperature_range'].split(','),
+                                        daily_precipitation_column = config['QAQC']['daily_precipitation_column'].split(','),
+                                        dry_and_wet_bulb_temperature_columns = config['QAQC']['dry_and_wet_bulb_temperature_columns'].split(','))
+
         
         except Exception as e:
             print(f"Error processing {month_filename}: {e}")
@@ -123,7 +126,6 @@ def process_station(station):
     
     data_formatting(post_QA_QC_transcribed_hydroclimate_data_dir_station, final_refined_daily_hydroclimate_data_dir_station, metadata_file_path, station, 
                     date_column = config['DataFormatting']['date_column'].strip(),
-                    columns_to_check = config['QAQC']['columns_to_check'].split(','),
                     header_rows = int(config['QAQC']['header_rows']),
                     multi_day_totals = config.getboolean('QAQC', 'multi_day_totals'),
                     multi_day_averages = config.getboolean('QAQC', 'multi_day_averages'),
@@ -141,7 +143,7 @@ def process_station(station):
 
     validate(manually_transcribed_data_dir_station, post_QA_QC_transcribed_hydroclimate_data_dir_station, validation_dir_station, station,
              date_column = config['DataFormatting']['date_column'].strip(),
-             columns_to_check = config['QAQC']['columns_to_check'].split(','),
+             daily_temperature_columns = config['QAQC']['daily_temperature_columns'].split(','),
              header_rows = int(config['QAQC']['header_rows']),
              multi_day_totals = config.getboolean('QAQC', 'multi_day_totals'),
              multi_day_averages = config.getboolean('QAQC', 'multi_day_averages'),
