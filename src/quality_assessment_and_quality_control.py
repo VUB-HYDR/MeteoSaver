@@ -895,14 +895,14 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
                 U = float(U_cell.value)
                 calculated_U = calculate_U(ea, delta_e)
                 
-                print("the U is: ")
-                print(U)
-                print("the calculated U is: ")
-                print(calculated_U)
-                print("Checking if the Actual Vapour pressure (e), Relative Humidity (U), and delta e calculation is accurate")
+                # print("the U is: ")
+                # print(U)
+                # print("the calculated U is: ")
+                # print(calculated_U)
+                # print("Checking if the Actual Vapour pressure (e), Relative Humidity (U), and delta e calculation is accurate")
                 # Update U_cell if different from calculated
                 if np.isclose(U, calculated_U, atol=uncertainty_margin):
-                    print("The Actual Vapour pressure (e), Relative Humidity (U), and delta e calculation is accurate")
+                    # print("The Actual Vapour pressure (e), Relative Humidity (U), and delta e calculation is accurate")
                     highlight_change('FF6DCD57', U_cell, new_version_of_file)  # Confirmed value. Highlight in green
                     highlight_change('FF6DCD57', ea_cell, new_version_of_file) # Confirmed value. Highlight in green
                     highlight_change('FF6DCD57', delta_e_cell, new_version_of_file)    # Confirmed value. Highlight in green

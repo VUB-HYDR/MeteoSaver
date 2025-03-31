@@ -6,6 +6,7 @@ import re
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.linear_model import LinearRegression
+from scipy.stats import theilslopes
 
 
 # Function to extract year, month from filename
@@ -153,167 +154,7 @@ def load_station_metadata(file_path, sheet_name='Stations'):
 
 
 
-def convert_to_sef_with_metadata(df, station_info, temp_column, temp_type, source="Institut National pour l'Etude et la Recherche Agronomiques", link="", stat="point", units="C", observer=""):
-    """
-    Convert a DataFrame containing temperature data into the Station Exchange Format (SEF, .tsv) using station metadata.
-
-    This function creates SEF-compliant output by combining temperature data from a given DataFrame with station metadata. 
-    The SEF headers are dynamically constructed based on the station information, and the temperature data is formatted into 
-    SEF-compliant rows with specified temperature type and metadata.
-
-    Parameters
-    ----------
-    df : pandas.DataFrame
-        DataFrame containing temperature data. It must include columns 'Year', 'Month', 'Day', and the temperature column specified in `temp_column`.
-    station_info : dict
-        Dictionary containing station metadata with keys:
-        - 'ID': Unique station identifier (station number).
-        - 'name': Station name.
-        - 'latitude': Latitude of the station (in decimal degrees).
-        - 'longitude': Longitude of the station (in decimal degrees).
-        - 'altitude': Altitude of the station (in meters).
-    temp_column : str
-        The name of the column in `df` that contains the temperature data to be converted.
-    temp_type : str
-        The type of temperature variable being converted (e.g., "Tmax" for maximum temperature).
-    source : str, optional
-        The source of the data (default is "Institut National pour l'Etude et la Recherche Agronomiques").
-    link : str, optional
-        A URL or link to additional information about the data (default is an empty string).
-    stat : str, optional
-        Statistical representation of the data (e.g., "point", "mean"). Defaults to "point".
-    units : str, optional
-        The units of the temperature data (default is "C" for Celsius).
-    observer : str, optional
-        Information about the data observer or recorder (default is an empty string).
-
-    Returns
-    -------
-    tuple
-        - sef_headers: dict
-            A dictionary containing the SEF header metadata.
-        - sef_df: pandas.DataFrame
-            A DataFrame representing the SEF data rows, including temperature values and metadata.
-
-    
-    """
-    
-    # Define SEF headers as a list of strings
-    sef_headers = {
-        "SEF": "1.0.0",
-        "ID": station_info['ID'],
-        "Name": station_info['name'],
-        "Lat": station_info['latitude'],
-        "Lon": station_info['longitude'],
-        "Alt": station_info['altitude'],
-        "Source": source,
-        "Link": link,
-        "Vbl": temp_type,
-        "Stat": stat,
-        "Units": units,
-        "Meta": f"Observer={observer}  | QC software = MeteoSaver v1.0 | Note = Transcription software: MeteoSaver v1.0 (https://github.com/VUB-HYDR/MeteoSaver)"
-    }
-
-    
-    # Prepare the SEF data rows
-    sef_df = pd.DataFrame({
-        "Year": df["Year"],
-        "Month": df["Month"],
-        "Day": df["Day"],
-        "Hour": [0] * len(df),   # Assuming midnight for simplicity
-        "Minute": [0] * len(df),
-        "Period": [0] * len(df),
-        "Value": df[temp_column].fillna("NaN"),
-        "Meta": [""] * len(df)   # Placeholder for any additional meta information
-    })
-    
-    # Define the correct column order for SEF data
-    sef_column_order = ["Year", "Month", "Day", "Hour", "Minute", "Period", "Value", "Meta"]
-    sef_df = sef_df[sef_column_order]
-
-    return sef_headers, sef_df
-
-# def analyze_temperature_trends(output_folder_path, station):
-#     """
-#     Analyzes and plots temperature trends over time using linear regression.
-
-#     Parameters
-#     ----------
-#     output_folder_path : str
-#         Path to the folder where the processed temperature dataset is stored.
-#     station : str
-#         Unique identifier for the station being analyzed.
-
-#     Returns
-#     -------
-#     None
-#         The function plots the temperature trends and prints the trend slopes.
-#     """
-
-#     # Load the cleaned temperature dataset
-#     file_path = os.path.join(output_folder_path, "Daily_all_temperatures.xlsx")
-#     df = pd.read_excel(file_path, sheet_name="Data")
-
-#     # Drop rows with missing temperature values
-#     df_clean = df.dropna(subset=["Max_Temperature", "Min_Temperature", "Avg_Temperature"]).copy()
-
-#     # Convert the date components into a single datetime column
-#     df_clean["Date"] = pd.to_datetime(df_clean[["Year", "Month", "Day"]])
-
-#     # Convert the Year to numerical values for regression
-#     df_clean["Year_Num"] = df_clean["Year"].astype(int)
-
-#     # Fit linear regression models for Max, Min, and Avg temperatures
-#     X = df_clean["Year_Num"].values.reshape(-1, 1)  # Predictor variable (Year)
-#     models = {}
-#     predictions = {}
-
-#     for temp_type in ["Max_Temperature", "Min_Temperature", "Avg_Temperature"]:
-#         y = df_clean[temp_type].values  # Response variable (Temperature)
-        
-#         # Fit the linear regression model
-#         model = LinearRegression().fit(X, y)
-#         models[temp_type] = model
-        
-#         # Predict values for the trend line
-#         predictions[temp_type] = model.predict(X)
-
-#     # Plot the trends using Matplotlib
-#     plt.figure(figsize=(12, 6))
-    
-#     # Scatter plots for temperature data
-#     plt.scatter(df_clean["Date"], df_clean["Max_Temperature"], color="red", label="Max Temperature", alpha=0.5, s=10)
-#     plt.scatter(df_clean["Date"], df_clean["Min_Temperature"], color="blue", label="Min Temperature", alpha=0.5, s=10)
-#     plt.scatter(df_clean["Date"], df_clean["Avg_Temperature"], color="orange", label="Avg Temperature", alpha=0.5, s=10)
-
-#     # Plot trend lines
-#     plt.plot(df_clean["Date"], predictions["Max_Temperature"], color="darkred", linewidth=2, label="Max Temp Trend")
-#     plt.plot(df_clean["Date"], predictions["Min_Temperature"], color="darkblue", linewidth=2, label="Min Temp Trend")
-#     plt.plot(df_clean["Date"], predictions["Avg_Temperature"], color="darkorange", linewidth=2, label="Avg Temp Trend")
-
-#     # Formatting the plot
-#     plt.xlabel("Year")
-#     plt.ylabel("Temperature (°C)")
-#     plt.title(f"Temperature Trends at Station {station}")
-#     plt.legend()
-#     plt.grid(True)
-
-#     # Save and show the plot
-#     trend_plot_path = os.path.join(output_folder_path, "temperature_trend_plot.jpg")
-#     plt.savefig(trend_plot_path, format="jpg")
-#     # plt.show()
-
-#     # Extract and print the slope values
-#     trend_slopes = {temp_type: models[temp_type].coef_[0] for temp_type in models}
-
-#     print("\nTrend slopes (°C per year):")
-#     for temp, slope in trend_slopes.items():
-#         print(f"{temp}: {slope:.5f} °C/year")
-
-#     return trend_slopes
-
-
-def analyze_temperature_trends(output_folder_path, station, station_name):
+def analyze_temperature_trends_with_linear_regression(output_folder_path, station, station_name):
     """
     Analyzes and plots temperature trends over time using linear regression.
 
@@ -348,9 +189,9 @@ def analyze_temperature_trends(output_folder_path, station, station_name):
     # Convert the Year to numerical values for regression
     df_clean["Year_Num"] = df_clean["Year"].astype(int)
 
-    # ✅ Check if df_clean is empty
+    # Check if df_clean is empty
     if df_clean.empty:
-        print(f"⚠️ Warning: No valid data at station {station}. Debugging:")
+        print(f"Warning: No valid data at station {station}. Debugging:")
         print(df.head())  # Debugging step
         return None
 
@@ -364,16 +205,16 @@ def analyze_temperature_trends(output_folder_path, station, station_name):
         y = df_clean[temp_type].values  # Response variable (Temperature)
         
         if len(y) == 0:
-            print(f"⚠️ Warning: No valid {temp_type} data at station {station}. Skipping.")
+            print(f"Warning: No valid {temp_type} data at station {station}. Skipping.")
             continue
         
         model = LinearRegression().fit(X, y)
         models[temp_type] = model
         predictions[temp_type] = model.predict(X)
 
-    # ✅ Ensure at least one model was trained
+    # Ensure at least one model was trained
     if not models:
-        print(f"❌ Error: No valid data for regression at station {station}. Skipping plot.")
+        print(f"Error: No valid data for regression at station {station}. Skipping plot.")
         return None
 
     # Plot the trends
@@ -382,8 +223,9 @@ def analyze_temperature_trends(output_folder_path, station, station_name):
     trend_colors = {"Max_Temperature": "darkred", "Min_Temperature": "darkblue", "Avg_Temperature": "darkorange"}
 
     for temp_type, model in models.items():
-        plt.scatter(df_clean["Date"], df_clean[temp_type], color=colors[temp_type], alpha=0.5, s=10)
-        plt.plot(df_clean["Date"], predictions[temp_type], color=trend_colors[temp_type], linewidth=2)
+        plt.scatter(df_clean["Date"], df_clean[temp_type], color=colors[temp_type], alpha=0.5, s=10,
+                label=f"{temp_type.replace('_', ' ')}")
+        plt.plot(df_clean["Date"], predictions[temp_type], color=trend_colors[temp_type], linewidth=2,label=f"{temp_type.replace('_', ' ')} trend")
         
         # Extract slope value for annotation
         slope = model.coef_[0]
@@ -398,340 +240,271 @@ def analyze_temperature_trends(output_folder_path, station, station_name):
 
     plt.xlabel("Year")
     plt.ylabel("Temperature (°C)")
-    plt.title(f"Temperature Trends at Station: {station_name}")
+    plt.title(f"Temperature Trends at Station: {station_name} - using Linear Regression")
     plt.legend()
     plt.grid(True)
 
     # Save the plot
     os.makedirs(output_folder_path, exist_ok=True)
-    trend_plot_path = os.path.join(output_folder_path, f"temperature_trend_plot_{station}.jpg")
+    trend_plot_path = os.path.join(output_folder_path, f"temperature_trend_plot_{station}_using_linear_regression.jpg")
     plt.savefig(trend_plot_path, format="jpg", dpi=300)
-    print(f"✅ Figure saved at: {trend_plot_path}")
+    print(f"Figure saved at: {trend_plot_path}")
 
-    plt.show()
+    # plt.show()
     plt.close()  # Close after saving
 
     return {temp: models[temp].coef_[0] for temp in models}
 
 
 
-
-def data_formatting(input_folder_path, output_folder_path, metadata_file_path, station, date_column, columns_to_check, header_rows, multi_day_totals, multi_day_averages, excluded_rows, additional_excluded_rows, final_totals_rows, uncertainty_margin):
-
-    ''' 
-    Process meteorological observation data, flag anomalies, and convert it into SEF format for archival and analysis.
-
-    This function processes meteorological observation data from multiple Excel files in the specified input folder. It selects
-    confirmed data after quality checks, flags anomalies based on standard deviation thresholds, and converts the data to the
-    Station Exchange Format (SEF). It also generates a timeseries plot of maximum, minimum, and average temperatures.
+def analyze_temperature_trends_with_theilsen(output_folder_path, station, station_name):
+    """
+    Analyzes and plots temperature trends over time using both linear regression and Theil–Sen estimator.
 
     Parameters
     ----------
-    input_folder_path : str
-        Path to the folder containing post-processed Excel files for a specific station.
     output_folder_path : str
-        Path to the folder where processed files, SEF outputs, and plots will be saved.
-    metadata_file_path : str
-        Path to the metadata file containing station information (e.g., ID, latitude, longitude, altitude).
+        Path where the processed temperature dataset is stored.
     station : str
-        Unique identifier (station no.) for the station being processed.
-    date_column : str
-        The column in the Excel files containing the date (e.g., 'B' for column B).
-    columns_to_check : list of str
-        List of column letters containing the temperature variables to process (e.g., ['D', 'E', 'F'] for Max, Min, Avg temperatures).
-    header_rows : int
-        Number of header rows in the Excel files to skip before the data begins.
-    multi_day_totals : bool
-        Whether multi-day totals (e.g., cumulative data) are present in the files.
-    multi_day_averages : bool
-        Whether multi-day averages (e.g., weekly averages) are present in the files.
-    excluded_rows : list of int
-        Rows to exclude from processing, typically header rows or other non-data rows.
-    additional_excluded_rows : list of int
-        Additional rows to exclude when multi-day averages are present.
-    final_totals_rows : list of int
-        Rows to exclude that contain only final totals.
-    uncertainty_margin : float
-        The uncertainty margin to apply for flagging anomalies and plotting confidence intervals.
+        Unique station identifier.
+    station_name : str
+        Readable station name for plotting.
 
     Returns
     -------
-    None
-        The function does not return any value but performs the following:
-        - Saves processed and flagged data to Excel files.
-        - Converts temperature data into SEF format and saves as .tsv files.
-        - Generates and saves timeseries plots of temperatures with confidence intervals.
+    trend_slopes : dict
+        Slopes of the temperature trends for Max, Min, and Avg temperatures using both estimators.
+    """
+    file_path = os.path.join(output_folder_path, f"Daily_temperature_and_precipitation_station_{station}.xlsx")
 
-    
-    '''
+    if not os.path.exists(file_path):
+        print(f"Error: File not found - {file_path}")
+        return None
 
-    output_file = os.path.join(output_folder_path, 'Daily_all_temperatures.xlsx')  # Combined output file with the three variables: Max, Min, and Average Temperature
-    output_files = {  # Output files for individual temperature columns
-        'Max_Temperature': os.path.join(output_folder_path, 'Daily_max_temperatures.xlsx'),
-        'Min_Temperature': os.path.join(output_folder_path, 'Daily_min_temperatures.xlsx'),
-        'Avg_Temperature': os.path.join(output_folder_path, 'Daily_mean_temperatures.xlsx')
-    }
+    df = pd.read_excel(file_path, sheet_name="Data")
+    df_clean = df.dropna(subset=["Max_Temperature", "Min_Temperature", "Avg_Temperature"]).copy()
+    df_clean["Date"] = pd.to_datetime(df_clean[["Year", "Month", "Day"]])
+    df_clean["Year_Num"] = df_clean["Year"].astype(int)
 
-    # Load station metadata
-    station_metadata = load_station_metadata(metadata_file_path)
-    
-    # Ensure both station ID and station parameter are strings
-    station = str(station)  # Convert input station ID to string
-    station_metadata['ID'] = station_metadata['ID'].astype(str).str.strip().str.zfill(3)  # Ensure IDs in metadata are also strings
-    print("Station metadata IDs:", station_metadata['ID'].tolist())
-    
-    # Filter metadata for the specified station ID
-    station_info = station_metadata[station_metadata['ID'] == station]
-    if station_info.empty:
-        raise ValueError(f"No metadata found for station ID {station}")
-    station_info = station_info.iloc[0]  # Convert to a Series
+    if df_clean.empty:
+        print(f"Warning: No valid data at station {station}.")
+        return None
 
-    # List to hold all data
-    data = [] # All the variables
+    colors = {"Max_Temperature": "red", "Min_Temperature": "blue", "Avg_Temperature": "orange"}
+    trend_colors = {"Max_Temperature": "darkred", "Min_Temperature": "darkblue", "Avg_Temperature": "darkorange"}
 
-    # Lists to hold all data for each temperature type
-    data_max = []
-    data_min = []
-    data_avg = []
+    trend_slopes = {}
 
-    # Rows to exclude. Adjust these according to your specific sheet
-    if multi_day_totals and not multi_day_averages:
-        excluded_rows =  excluded_rows # These include titles and multi-day (e.g. 5/6) day totals
-    if multi_day_totals and multi_day_averages:
-        excluded_rows = excluded_rows + additional_excluded_rows # including both multi day totals and averages
-    if not multi_day_totals:
-        excluded_rows = final_totals_rows # Exlude only the final totals
+    plt.figure(figsize=(12, 6))
 
-    # Convert the day column letter and temperature columns to numeric indices
-    date_column_idx = ord(date_column) - ord('A') + 1  # Convert 'B' -> 2  # Date
-    column_indices = [ord(col.strip()) - ord('A') + 1 for col in columns_to_check] # Max, min and average temperatures 
+    for temp_type in ["Max_Temperature", "Min_Temperature", "Avg_Temperature"]:
+        y = df_clean[temp_type].values
+        x = df_clean["Year_Num"].values
 
-    # Now `column_indices` will contain [4, 5, 6] for 'D', 'E', 'F'
-    max_temp_column_idx = column_indices[0]  # 'D' column index -> Maximum temperature
-    min_temp_column_idx = column_indices[1]  # 'E' column index -> Minimum temperature
-    avg_temp_column_idx = column_indices[2]  # 'F' column index -> Avergae temperature
+        if len(y) == 0:
+            print(f"No valid {temp_type} data at station {station}. Skipping.")
+            continue
 
-    # Iterate over all files in the folder
-    for filename in os.listdir(input_folder_path):
-        if filename.endswith(".xlsx"):
-            # Extract year and month from filename
-            year, month = extract_date_from_filename(filename)
-            if year and month:
-                file_path = os.path.join(input_folder_path, filename)
-                workbook = openpyxl.load_workbook(file_path)
-                worksheet = workbook.active
+        # Linear Regression
+        model = LinearRegression().fit(x.reshape(-1, 1), y)
+        linear_pred = model.predict(x.reshape(-1, 1))
+        linear_slope = model.coef_[0]
 
-                # Extract data from rows and columns, excluding specific rows.  
-                for row_num in range(header_rows+1, worksheet.max_row + 1): #Here this represents Max, Min and Average Temperatures
-                    if row_num not in excluded_rows: 
-                        day_cell = worksheet.cell(row=row_num, column=date_column_idx)  # Assuming the day is in the first column
-                        max_temperature_cell = worksheet.cell(row=row_num, column=max_temp_column_idx)  # Column for Max Temperature
-                        min_temperature_cell = worksheet.cell(row=row_num, column=min_temp_column_idx)  # Column for Min Temperature
-                        average_temperature_cell = worksheet.cell(row=row_num, column=avg_temp_column_idx)  # Column for Avg Temperature
+        # Theil-Sen Estimator
+        theil_slope, intercept, _, _ = theilslopes(y, x, 0.95)
+        theil_pred = intercept + theil_slope * x
 
+        trend_slopes[temp_type] = {
+            "linear_slope": linear_slope,
+            "theil_slope": theil_slope
+        }
 
-                        if day_cell.value :
-                            day = int(day_cell.value)
-                            max_temperature = max_temperature_cell.value if is_highlighted_green(max_temperature_cell, 'FF6DCD57') else 'NaN'
-                            min_temperature = min_temperature_cell.value if is_highlighted_green(min_temperature_cell, 'FF6DCD57') else 'NaN'
-                            average_temperature = average_temperature_cell.value if is_highlighted_green(average_temperature_cell, 'FF6DCD57') else 'NaN'
-                            
-                            data.append([year, month, day, max_temperature, min_temperature, average_temperature])
+        # Plot original data
+        plt.scatter(df_clean["Date"], y, color=colors[temp_type], alpha=0.4, s=10, label=f"{temp_type} Data")
 
-                            data_max.append([year, month, day, max_temperature])
-                            data_min.append([year, month, day, min_temperature])
-                            data_avg.append([year, month, day, average_temperature])
+        # # Plot Linear Regression Line
+        # plt.plot(df_clean["Date"], linear_pred, color=trend_colors[temp_type], linewidth=1.5, linestyle="--", label=f"{temp_type} Linear")
 
+        # Plot Theil–Sen Line
+        plt.plot(df_clean["Date"], theil_pred, color=trend_colors[temp_type], linewidth=2, label=f"{temp_type} Theil–Sen")
 
-    # Create a DataFrame from the data
-    df = pd.DataFrame(data, columns=["Year", "Month", "Day", "Max_Temperature", "Min_Temperature", "Avg_Temperature"])
+        # Annotate Theil–Sen slope
+        plt.text(df_clean["Date"].iloc[-1], theil_pred[-1], f"{theil_slope:.3f} °C/yr", 
+                 fontsize=9, color=trend_colors[temp_type], fontweight='bold')
 
+    plt.xlabel("Year")
+    plt.ylabel("Temperature (°C)")
+    plt.title(f"Temperature Trends at Station: {station_name} - using Theil–Sen Estimator")
+    plt.legend()
+    plt.grid(True)
 
-    # Generate a complete date range for each year and month combination
-    years_months = df[['Year', 'Month']].drop_duplicates()
-    complete_data = []
+    os.makedirs(output_folder_path, exist_ok=True)
+    plot_path = os.path.join(output_folder_path, f"temperature_trend_{station}_using_theilsen.jpg")
+    plt.savefig(plot_path, dpi=300)
+    print(f"Theil–Sen trend plot saved at: {plot_path}")
 
-    for _, row in years_months.iterrows():
-        year = row['Year']
-        month = row['Month']
-        num_days = pd.Period(f'{year}-{month}').days_in_month
-        for day in range(1, num_days + 1):
-            complete_data.append([year, month, day])
-
-    complete_df = pd.DataFrame(complete_data, columns=["Year", "Month", "Day"])
-
-    # Merge the complete date range with the extracted data
-    merged_df = pd.merge(complete_df, df, on=["Year", "Month", "Day"])
-   
-    # Fill missing temperatures with a placeholder value (e.g., NaN or a specific value)
-    for column in ["Max_Temperature", "Min_Temperature", "Avg_Temperature"]: # Since this is temperature, missing vales cannot be zero (0)
-        merged_df[column] = merged_df[column].fillna(np.nan)
-    
-    # Convert temperature columns to numeric, coerce errors to NaN.
-    merged_df['Max_Temperature'] = pd.to_numeric(merged_df['Max_Temperature'], errors='coerce')
-    merged_df['Min_Temperature'] = pd.to_numeric(merged_df['Min_Temperature'], errors='coerce')
-    merged_df['Avg_Temperature'] = pd.to_numeric(merged_df['Avg_Temperature'], errors='coerce')
-    
-    # Sort DataFrame by Year, Month, Day
-    merged_df = merged_df.sort_values(by=['Year', 'Month', 'Day'])
-
-    # Standard deviation and outlier detection with flagging
-    for column in ["Max_Temperature", "Min_Temperature", "Avg_Temperature"]:
-        std = merged_df[column].std()
-        mean = merged_df[column].mean()
-
-        merged_df[f"{column}_Flag"] = ""
-        
-        ## UNCOMMENT BELOW FOR CONDITION 1 IN CASE OF LONG TIME SERIES
-        # # Condition 1: Remove values > 3 std deviations from the mean and flag them
-        
-        # for i in range(len(merged_df)):
-        #     if abs(merged_df.loc[i, column] - mean) > 3 * std:
-        #         merged_df.loc[i, column] = np.nan
-        #         merged_df.loc[i, f"{column}_Flag"] = "Condition 1"  # Flag as Condition 1 (current value as an outlier)
-
-        # Condition 2: Detect and flag sharp transitions between days (e.g., from -4std to +4sd to -4sd)
-        # Calculate the standard deviation differences for each day relative to the mean
-        merged_df['std_diff'] = (merged_df[column] - mean) / std
-        for i in range(1, len(merged_df) - 1): # Avoid the first and last rows to prevent boundary issues
-            prev_std_diff = merged_df.loc[i - 1, 'std_diff'] if not pd.isna(merged_df.loc[i - 1, 'std_diff']) else 0 # std deviation difference of previous day
-            curr_std_diff = merged_df.loc[i, 'std_diff'] # std deviation difference of current day
-            next_std_diff = merged_df.loc[i + 1, 'std_diff'] if not pd.isna(merged_df.loc[i + 1, 'std_diff']) else 0 # std deviation difference of following day
-
-            # Detect sharp opposite changes (e.g., large negative difference to large positive difference or vice versa)
-            if not pd.isna(curr_std_diff) and (
-                (prev_std_diff < -4 and curr_std_diff > 4 and next_std_diff < -4) or
-                (prev_std_diff > 4 and curr_std_diff < -4 and next_std_diff > 4)
-            ):
-                merged_df.loc[i, column] = np.nan
-                merged_df.loc[i, f"{column}_Flag"] = "Condition 2"  # Flag as Condition 2 (current value as an outlier)
-
-        # Drop the temporary std_diff column
-        merged_df.drop(columns=['std_diff'], inplace=True)
-
-    # Save flagged data to Excel and apply conditional formatting
-    with pd.ExcelWriter(output_file, engine="openpyxl") as writer:
-        merged_df.to_excel(writer, index=False, sheet_name="Data")
-        workbook = writer.book
-        worksheet = writer.sheets["Data"]
-
-        # Define the dark red fill for flagged cells
-        dark_red_fill = PatternFill(start_color="CC3300", end_color="CC3300", fill_type="solid")
-
-        # Apply conditional formatting to only flagged cells
-        for column in ["Max_Temperature", "Min_Temperature", "Avg_Temperature"]:
-            flag_column = f"{column}_Flag"
-            for row in range(2, len(merged_df) + 2):  # Adjusting for header in Excel
-                if merged_df.loc[row - 2, flag_column] in ["Condition 1", "Condition 2"]:
-                    cell = worksheet[f"{openpyxl.utils.get_column_letter(merged_df.columns.get_loc(column) + 1)}{row}"]
-                    cell.fill = dark_red_fill
-
-    # Clean up flag columns in the DataFrame for further processing, if needed
-    merged_df.drop(columns=[f"{col}_Flag" for col in ["Max_Temperature", "Min_Temperature", "Avg_Temperature"]], inplace=True)
-
-    # # Save the DataFrame to a new Excel file 
-    # #merged_df.to_excel(output_file, index=False)
-    # timeseries = merged_df.fillna('NaN')
-    # timeseries.to_excel(output_file, index=False)
-
-    # After processing, generate the SEF file
-    # Loop over each temperature type and create a SEF file for each
-    temperature_columns = {
-        "Max_Temperature": "Tx",
-        "Min_Temperature": "Tn",
-        "Avg_Temperature": "Ta"
-    }
-    
-    
-    for temp_column, temp_type in temperature_columns.items():
-        # Filter data for the specific temperature type
-        timeseries_df = merged_df[['Year', 'Month', 'Day', temp_column]].fillna('NaN')
-        timeseries_df = timeseries_df.rename(columns={temp_column: "Value"})
-
-        # Convert to SEF format with headers using the function
-        sef_headers, sef_df = convert_to_sef_with_metadata(
-            df=timeseries_df,
-            station_info=station_info,
-            temp_column="Value",    # Pass the renamed column "Value"
-            temp_type=temp_type      # Pass the type (e.g., Tx, Tn, Ta) for SEF header
-        )
-
-        # Define the output file path
-        sef_output_file = os.path.join(output_folder_path, f"SEF_station_{station}_{temp_type}_temperature.tsv")
-        
-        # Write headers and data to the TSV file
-        with open(sef_output_file, 'w') as f:
-            # Write each header line with tab separation
-            for key, value in sef_headers.items():
-                f.write(f"{key}\t{value}\n")
-            
-
-            # Write the main SEF data with tab separation and include the header row for data columns
-            sef_df.to_csv(f, index=False, sep='\t', header=True)
-
-
-    # # Save to individual files
-    # for column in ["Max_Temperature", "Min_Temperature", "Avg_Temperature"]:
-    #     output_file = output_files[column]
-    #     timeseries = merged_df[['Year', 'Month', 'Day', column]].fillna('NaN')
-    #     timeseries.to_excel(output_file, index=False)
-
-    
-    # # Convert temperature columns to numeric, coerce errors to NaN.
-    # merged_df['Max_Temperature'] = pd.to_numeric(merged_df['Max_Temperature'], errors='coerce')
-    # merged_df['Min_Temperature'] = pd.to_numeric(merged_df['Min_Temperature'], errors='coerce')
-    # merged_df['Avg_Temperature'] = pd.to_numeric(merged_df['Avg_Temperature'], errors='coerce')
-
-
-    # Plot and save the graph
-    merged_df['Date'] = pd.to_datetime(merged_df[['Year', 'Month', 'Day']])
-    
-  
-    #***PLOTTING***
-    # ## Plot timeseries: lines with breaks in cases with missing data
-    # Do not drop rows with NaN values
-    plot_df = merged_df[['Date', 'Max_Temperature', 'Min_Temperature', 'Avg_Temperature']]
-
-    # Set the Date column as the index
-    plot_df.set_index('Date', inplace=True)
-
-    # Create a figure and axis for the plot
-    fig, ax = plt.subplots(figsize=(10, 6))
-
-    # Plot Max Temperature with confidence interval band using pandas plot function
-    plot_df['Max_Temperature'].plot(ax=ax, label='Maximum', color='red')
-    ax.fill_between(plot_df.index, plot_df['Max_Temperature'] - uncertainty_margin, plot_df['Max_Temperature'] + uncertainty_margin, color='red', alpha=0.2)
-
-    # Plot Min Temperature with confidence interval band using pandas plot function
-    plot_df['Min_Temperature'].plot(ax=ax, label='Minimum', color='blue')
-    ax.fill_between(plot_df.index, plot_df['Min_Temperature'] - uncertainty_margin, plot_df['Min_Temperature'] + uncertainty_margin, color='blue', alpha=0.2)
-
-    # Plot Avg Temperature with confidence interval band using pandas plot function
-    plot_df['Avg_Temperature'].plot(ax=ax, label='Average', color='orange')
-    ax.fill_between(plot_df.index, plot_df['Avg_Temperature'] - uncertainty_margin, plot_df['Avg_Temperature'] + uncertainty_margin, color='orange', alpha=0.2)
-
-    # Set plot labels and title
-    ax.set_xlabel('Date')
-    ax.set_ylabel('Temperature (°C)')
-    ax.set_title('Daily Maximum, Minimum, and Average Temperatures at Station ' + str(station))
-    ax.legend()
-    ax.grid(True)
-
-    # Save the plot
-    plt.savefig(f'{output_folder_path}/temperature_plot.jpg', format='jpg')
     # plt.show()
+    plt.close()
 
-    # # Call the function to analyze temperature trends after data formatting
-    # trend_slopes = analyze_temperature_trends(output_folder_path, station)
-
-
+    return trend_slopes
 
 
+def analyze_precipitation_trend_theilsen(output_folder_path, station, station_name):
+    """
+    Analyzes and plots daily precipitation trends over time using the Theil–Sen estimator.
+
+    Parameters
+    ----------
+    output_folder_path : str
+        Path where the processed precipitation dataset is stored.
+    station : str
+        Unique station identifier.
+    station_name : str
+        Readable station name for the plot.
+
+    Returns
+    -------
+    theil_slope : float
+        Estimated slope of the daily precipitation trend in mm/year.
+    """
+    file_path = os.path.join(output_folder_path, f"Daily_temperature_and_precipitation_station_{station}.xlsx")
+
+    if not os.path.exists(file_path):
+        print(f"File not found: {file_path}")
+        return None
+
+    df = pd.read_excel(file_path, sheet_name="Data")
+
+    # Filter out rows without precipitation values
+    if "Precipitation" not in df.columns:
+        print(f"'Precipitation' column not found in the file.")
+        return None
+
+    df_clean = df.dropna(subset=["Precipitation"]).copy()
+
+    # Combine Year, Month, Day into a single datetime column
+    df_clean["Date"] = pd.to_datetime(df_clean[["Year", "Month", "Day"]])
+    df_clean["Year_Num"] = df_clean["Year"].astype(int)
+
+    if df_clean.empty:
+        print(f"No valid precipitation data at station {station}.")
+        return None
+
+    # Predictor and response variables
+    x = df_clean["Year_Num"].values
+    y = df_clean["Precipitation"].values
+
+    # Theil–Sen trend estimation
+    theil_slope, intercept, _, _ = theilslopes(y, x, 0.95)
+    theil_pred = intercept + theil_slope * x
+
+    # Plotting
+    plt.figure(figsize=(12, 6))
+    plt.scatter(df_clean["Date"], y, alpha=0.3, s=10, color="dodgerblue", label="Daily Precipitation")
+    plt.plot(df_clean["Date"], theil_pred, color="navy", linewidth=2, label="Theil–Sen Trend")
+
+    plt.title(f"Precipitation Trends at Station: {station_name} - using Theil–Sen Estimator")
+    plt.xlabel("Year")
+    plt.ylabel("Precipitation (mm)")
+    plt.legend()
+    plt.grid(True)
+
+    # Annotate slope (converted to mm/year)
+    last_date = df_clean["Date"].iloc[-1]
+    last_predicted = theil_pred[-1]
+    plt.text(last_date, last_predicted, f"{theil_slope:.3f} mm/yr",
+             fontsize=10, color="navy", fontweight="bold")
+
+    # Save plot
+    os.makedirs(output_folder_path, exist_ok=True)
+    plot_path = os.path.join(output_folder_path, f"precipitation_trend_theilsen_{station}.jpg")
+    plt.savefig(plot_path, dpi=300)
+    print(f"Precipitation trend plot saved at: {plot_path}")
+
+    # plt.show()
+    plt.close()
+
+    return theil_slope
 
 
 
+def analyze_monthly_precipitation_trend_theilsen(output_folder_path, station, station_name):
+    """
+    Analyzes and plots monthly average precipitation trends over time using the Theil–Sen estimator.
 
+    Parameters
+    ----------
+    output_folder_path : str
+        Path where the processed precipitation dataset is stored.
+    station : str
+        Unique station identifier.
+    station_name : str
+        Readable station name for the plot.
 
+    Returns
+    -------
+    theil_slope : float
+        Estimated slope of the monthly precipitation trend in mm/year.
+    """
+    file_path = os.path.join(output_folder_path, f"Daily_temperature_and_precipitation_station_{station}.xlsx")
+
+    if not os.path.exists(file_path):
+        print(f"File not found: {file_path}")
+        return None
+
+    df = pd.read_excel(file_path, sheet_name="Data")
+
+    if "Precipitation" not in df.columns:
+        print(f"'Precipitation' column not found in the file.")
+        return None
+
+    df_clean = df.dropna(subset=["Precipitation"]).copy()
+    df_clean["Date"] = pd.to_datetime(df_clean[["Year", "Month", "Day"]])
+    
+    if df_clean.empty:
+        print(f"No valid precipitation data at station {station}.")
+        return None
+
+    # Group by Year and Month, then take the average
+    df_clean["YearMonth"] = df_clean["Date"].dt.to_period("M")
+    monthly_avg = df_clean.groupby("YearMonth")["Precipitation"].mean().reset_index()
+    monthly_avg["Date"] = monthly_avg["YearMonth"].dt.to_timestamp()
+    monthly_avg["Year_Fraction"] = monthly_avg["Date"].dt.year + (monthly_avg["Date"].dt.month - 1) / 12.0
+
+    # Predictor and response variables
+    x = monthly_avg["Year_Fraction"].values
+    y = monthly_avg["Precipitation"].values
+
+    # Theil–Sen estimator
+    theil_slope, intercept, _, _ = theilslopes(y, x, 0.95)
+    theil_pred = intercept + theil_slope * x
+
+    # Plot
+    plt.figure(figsize=(12, 6))
+    plt.scatter(monthly_avg["Date"], y, alpha=0.4, s=15, color="skyblue", label="Monthly Avg Precipitation")
+    plt.plot(monthly_avg["Date"], theil_pred, color="navy", linewidth=2, label="Theil–Sen Trend")
+
+    plt.title(f"Precipitation Trends at Station: {station_name} - using Theil–Sen Estimator")
+    plt.xlabel("Year")
+    plt.ylabel("Monthly Avg Precipitation (mm)")
+    plt.legend()
+    plt.grid(True)
+
+    # Annotate slope
+    last_date = monthly_avg["Date"].iloc[-1]
+    last_predicted = theil_pred[-1]
+    plt.text(last_date, last_predicted, f"{theil_slope:.3f} mm/yr",
+             fontsize=10, color="navy", fontweight="bold")
+
+    # Save plot
+    os.makedirs(output_folder_path, exist_ok=True)
+    plot_path = os.path.join(output_folder_path, f"monthly_precipitation_trend_theilsen_{station}.jpg")
+    plt.savefig(plot_path, dpi=300)
+    print(f" Monthly precipitation trend plot saved at: {plot_path}")
+
+    plt.close()
+
+    return theil_slope
 
 
 def convert_to_sef_with_metadata(
@@ -1001,7 +774,7 @@ def data_formatting(input_folder_path, output_folder_path, metadata_file_path, s
     ax.grid(True)
     plt.tight_layout()
     plt.savefig(os.path.join(output_folder_path, f"combined_temperature_and_precipitation_plot.jpg"))
-    plt.show()
+    # plt.show()
     plt.close()
 
     # === Plot 2: Only Temperature ===
@@ -1016,7 +789,7 @@ def data_formatting(input_folder_path, output_folder_path, metadata_file_path, s
     ax.grid(True)
     plt.tight_layout()
     plt.savefig(os.path.join(output_folder_path, f"temperature_plot_station_{station}.jpg"))
-    plt.show()
+    # plt.show()
     plt.close()
 
     # === Plot 3: Precipitation ===
@@ -1030,7 +803,7 @@ def data_formatting(input_folder_path, output_folder_path, metadata_file_path, s
     ax.grid(True)
     plt.tight_layout()
     plt.savefig(os.path.join(output_folder_path, f"precipitation_plot_station_{station}.jpg"))
-    plt.show()
+    # plt.show()
     plt.close()
 
     # === Plot 4: Yearly Temperature Trends with 5-day Rolling Average ===
@@ -1056,7 +829,7 @@ def data_formatting(input_folder_path, output_folder_path, metadata_file_path, s
         ax.grid(True)
         plt.tight_layout()
         plt.savefig(os.path.join(output_folder_path, f"{column}_trends_5day_station_{station}.jpg"))
-        plt.show()
+        # plt.show()
         plt.close()
 
     # === Plot 5: Dry and Wet Bulb Plots ===
@@ -1078,7 +851,7 @@ def data_formatting(input_folder_path, output_folder_path, metadata_file_path, s
         ax.grid(True)
         plt.tight_layout()
         plt.savefig(os.path.join(output_folder_path, f"{title.replace(' ', '_').lower()}_plot_station_{station}.jpg"))
-        plt.show()
+        # plt.show()
         plt.close()
     
 
@@ -1087,5 +860,12 @@ def data_formatting(input_folder_path, output_folder_path, metadata_file_path, s
     # Save the cleaned full dataset (needed for trend analysis)
     trend_excel_path = os.path.join(output_folder_path, f"Daily_temperature_and_precipitation_station_{station}.xlsx")
     merged_df.to_excel(trend_excel_path, index=False, sheet_name="Data")
+    
     # Analyze and plot temperature trends
-    trend_slopes = analyze_temperature_trends(output_folder_path, station, station_name)
+    # 6.1: Linear Regression
+    temperature_trend_slopes_with_linear_regression = analyze_temperature_trends_with_linear_regression(output_folder_path, station, station_name)
+    # 6.2: Theil-Sen Estimator
+    temperature_trend_slopes_with_theilsen = analyze_temperature_trends_with_theilsen(output_folder_path, station, station_name)
+    # Precipitation_trends
+    precipitation_trend_slopes_with_theilsen = analyze_monthly_precipitation_trend_theilsen(output_folder_path, station, station_name)
+
