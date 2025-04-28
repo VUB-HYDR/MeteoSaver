@@ -1311,7 +1311,7 @@ def transcription(detected_table_cells, ocr_model, tesseract_path, transient_tra
                         #     cell_ref = f'{column_letter}{row_index}'
                         
                         # Place the OCR/HTR recognized text in its respective Ms Excel cell 
-                        ws[cell_ref].value = ocr_result   
+                        ws[cell_ref].value = ocr_result.strip()  # Remove leading/trailing whitespace  
 
                         # # Restore the row index to the initial value
                         # row_index = initial_row_index
