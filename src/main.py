@@ -3,6 +3,7 @@ import configparser
 import multiprocessing as mp
 from datetime import datetime
 import glob
+import pandas as pd
 
 # Import all the required modules
 from image_preprocessing_module import *
@@ -32,9 +33,15 @@ manually_transcribed_data_dir = config['Directories']['manually_transcribed_data
 validation_dir = config['Directories']['validation_dir'] # Directory for validation results comparing manually transcribed and the MeteoSaver transcribed data 
 transient_transcription_output_dir = config['Directories']['transient_transcription_output_dir'] # Directory to store transient transcription output during processing
 metadata_file_path = config['Directories']['metadata_file_path'] # Directory for all the stations metadata
+formatted_already_digitized_data_dir = config['Directories']['formatted_already_digitized_data_dir'] # Directory for previously transcribed data to add to our new transcribed database
+region_shapefile_path = config['Directories']['region_shapefile_path'] # Directory for shapefile of the study region
+result_maps_dir = config['Directories']['result_maps_dir'] # Directory for results overlain on maps
 
 # Get all folder names (Station Numbers) within full_datadir
 all_stations = [folder for folder in os.listdir(full_datadir) if os.path.isdir(os.path.join(full_datadir, folder))]
+
+# # Trends calculated for all stations
+# all_station_trends = []
 
 # Function to process each station's data
 def process_station(station):
@@ -46,85 +53,99 @@ def process_station(station):
     os.makedirs(pre_QA_QC_transcribed_hydroclimate_data_dir_station, exist_ok=True)
     os.makedirs(post_QA_QC_transcribed_hydroclimate_data_dir_station, exist_ok=True)
     
-    # Search for all files in the `datadir` that start with the station number followed by an underscore ('_') and any other characters, and return a list of all matching file paths
-    station_data = glob.glob(os.path.join(datadir, f"{station}_*")) 
-    # OPTIONAL (Comment these two lines below if unnecessary): Filter the station_data and filenames to include only files with 'SF' in their names. Here the SF for standard format for sheets. This to filter our sheets with HD in their name, which stands for hand-drawn format, in their name as these were not standard formatted sheets and manually drawn by the observer.
-    filenames = [os.path.basename(file) for file in station_data if 'SF' in os.path.basename(file)]
+    # # Search for all files in the `datadir` that start with the station number followed by an underscore ('_') and any other characters, and return a list of all matching file paths
+    # station_data = glob.glob(os.path.join(datadir, f"{station}_*")) 
+    # # OPTIONAL (Comment these two lines below if unnecessary): Filter the station_data and filenames to include only files with 'SF' in their names. Here the SF for standard format for sheets. This to filter our sheets with HD in their name, which stands for hand-drawn format, in their name as these were not standard formatted sheets and manually drawn by the observer.
+    # filenames = [os.path.basename(file) for file in station_data if 'SF' in os.path.basename(file)]
 
-    for month in range(len(filenames)):
-        month_data = station_data[month]
-        month_filename = filenames[month]
+    # for month in range(len(filenames)):
+    #     month_data = station_data[month]
+    #     month_filename = filenames[month]
 
-        # Perform Pre-processing, Transcription, QA/QC, and Post-processing
-        try:
-            # Module 2: Image pre-processing
-            image_in_grayscale, binarized_image, original_image = image_preprocessing(month_data)
+    # Collect all valid 'SF' image files for this station
+    sf_files = [file for file in glob.glob(os.path.join(datadir, f"{station}_*")) if 'SF' in os.path.basename(file)]
 
-            # Module 3: Table and cell detection 
-            detected_table_and_cells = table_and_cell_detection(image_in_grayscale, binarized_image, original_image, station, month_filename, transient_transcription_output_dir,
-                                                   clip_up = int(config['TableAndCellDetection']['clip_up']), 
-                                                   clip_down = int(config['TableAndCellDetection']['clip_down']),
-                                                   clip_left = int(config['TableAndCellDetection']['clip_left']),
-                                                   clip_right = int(config['TableAndCellDetection']['clip_right']),
-                                                   max_table_width = int(config['TableAndCellDetection']['max_table_width']),
-                                                   max_table_height = int(config['TableAndCellDetection']['max_table_height']),
-                                                   min_cell_width_threshold=int(config['TableAndCellDetection']['min_cell_width_threshold']),
-                                                   max_cell_width_threshold=int(config['TableAndCellDetection']['max_cell_width_threshold']),
-                                                   min_cell_height_threshold=int(config['TableAndCellDetection']['min_cell_height_threshold']),
-                                                   max_cell_height_threshold=int(config['TableAndCellDetection']['max_cell_height_threshold']),
-                                                   space_height_threshold=int(config['TableAndCellDetection']['space_height_threshold']), 
-                                                   space_width_threshold=int(config['TableAndCellDetection']['space_width_threshold']), 
-                                                   max_cell_height_per_box=int(config['TableAndCellDetection']['max_cell_height_per_box']), 
-                                                   no_of_rows=int(config['TableAndCellDetection']['no_of_rows']), 
-                                                   no_of_columns=int(config['TableAndCellDetection']['no_of_columns']))
+    if not sf_files:
+        print(f"[INFO] No standard format (SF) files found for station {station}. Skipping.")
+        return
+
+    for month_data in sf_files:
+        month_filename = os.path.basename(month_data)
+
+        # Safety check: file really matches station
+        if not month_filename.startswith(f"{station}_"):
+            print(f"[WARNING] Filename mismatch: {month_filename} does not match station {station}. Skipping.")
+            continue
+        # # Perform Pre-processing, Transcription, QA/QC, and Post-processing
+        # try:
+        #     # Module 2: Image pre-processing
+        #     image_in_grayscale, binarized_image, original_image = image_preprocessing(month_data)
+
+        #     # Module 3: Table and cell detection 
+        #     detected_table_and_cells = table_and_cell_detection(image_in_grayscale, binarized_image, original_image, station, month_filename, transient_transcription_output_dir,
+        #                                            clip_up = int(config['TableAndCellDetection']['clip_up']), 
+        #                                            clip_down = int(config['TableAndCellDetection']['clip_down']),
+        #                                            clip_left = int(config['TableAndCellDetection']['clip_left']),
+        #                                            clip_right = int(config['TableAndCellDetection']['clip_right']),
+        #                                            max_table_width = int(config['TableAndCellDetection']['max_table_width']),
+        #                                            max_table_height = int(config['TableAndCellDetection']['max_table_height']),
+        #                                            min_cell_width_threshold=int(config['TableAndCellDetection']['min_cell_width_threshold']),
+        #                                            max_cell_width_threshold=int(config['TableAndCellDetection']['max_cell_width_threshold']),
+        #                                            min_cell_height_threshold=int(config['TableAndCellDetection']['min_cell_height_threshold']),
+        #                                            max_cell_height_threshold=int(config['TableAndCellDetection']['max_cell_height_threshold']),
+        #                                            space_height_threshold=int(config['TableAndCellDetection']['space_height_threshold']), 
+        #                                            space_width_threshold=int(config['TableAndCellDetection']['space_width_threshold']), 
+        #                                            max_cell_height_per_box=int(config['TableAndCellDetection']['max_cell_height_per_box']), 
+        #                                            no_of_rows=int(config['TableAndCellDetection']['no_of_rows']), 
+        #                                            no_of_columns=int(config['TableAndCellDetection']['no_of_columns']))
             
-            # Module 4: Transcription
-            start_time = datetime.now()
-            ocr_model = config['Transcription']['ocr_model'] # Selected OCR/HTR model
-            # Incase of Tesseract
-            # Ensure that the tesseract path is set correctly for your local system
-            tesseract_path = config['Transcription']['tesseract_path']
-            # Set TESSDATA_PREFIX to the system's tessdata directory (for system-wide language files)
-            system_tessdata_dir = config['Transcription']['system_tessdata_dir']
-            os.environ["TESSDATA_PREFIX"] = system_tessdata_dir
-            transcribed_table = transcription(detected_table_and_cells, ocr_model, tesseract_path, transient_transcription_output_dir, pre_QA_QC_transcribed_hydroclimate_data_dir_station, station, month_filename,
-                                              no_of_rows=int(config['TableAndCellDetection']['no_of_rows']),
-                                              no_of_columns=int(config['TableAndCellDetection']['no_of_columns']),
-                                              no_of_rows_including_headers=int(config['TableAndCellDetection']['no_of_rows_including_headers']))
+        #     # Module 4: Transcription
+        #     start_time = datetime.now()
+        #     ocr_model = config['Transcription']['ocr_model'] # Selected OCR/HTR model
+        #     # Incase of Tesseract
+        #     # Ensure that the tesseract path is set correctly for your local system
+        #     tesseract_path = config['Transcription']['tesseract_path']
+        #     # Set TESSDATA_PREFIX to the system's tessdata directory (for system-wide language files)
+        #     system_tessdata_dir = config['Transcription']['system_tessdata_dir']
+        #     os.environ["TESSDATA_PREFIX"] = system_tessdata_dir
+        #     transcribed_table = transcription(detected_table_and_cells, ocr_model, tesseract_path, transient_transcription_output_dir, pre_QA_QC_transcribed_hydroclimate_data_dir_station, station, month_filename,
+        #                                       no_of_rows=int(config['TableAndCellDetection']['no_of_rows']),
+        #                                       no_of_columns=int(config['TableAndCellDetection']['no_of_columns']),
+        #                                       no_of_rows_including_headers=int(config['TableAndCellDetection']['no_of_rows_including_headers']))
             
-            end_time = datetime.now()
+        #     end_time = datetime.now()
 
-            print(f'Duration of transcribing: {end_time - start_time}')
+        #     print(f'Duration of transcribing: {end_time - start_time}')
             
-            # Module 5: Quality assessment and Quality Control
-            qa_qc_checked_data = qa_qc(transcribed_table, station, transient_transcription_output_dir, post_QA_QC_transcribed_hydroclimate_data_dir_station, month_filename,
-                                        max_temperature_threshold = float(config['QAQC']['max_temperature_threshold']),
-                                        min_temperature_threshold = float(config['QAQC']['min_temperature_threshold']),
-                                        decimal_places = int(config['QAQC']['decimal_places']),
-                                        uncertainty_margin = float(config['QAQC']['uncertainty_margin']),
-                                        header_rows = int(config['QAQC']['header_rows']),
-                                        multi_day_totals = config.getboolean('QAQC', 'multi_day_totals'),
-                                        multi_day_averages = config.getboolean('QAQC', 'multi_day_averages'),
-                                        max_days_for_multi_day_total = int(config['QAQC']['max_days_for_multi_day_total']),
-                                        multi_day_totals_rows = list(map(int, config['QAQC']['multi_day_totals_rows'].split(','))),
-                                        final_totals_rows = list(map(int, config['QAQC']['final_totals_rows'].split(','))),
-                                        excluded_rows = list(map(int, config['QAQC']['excluded_rows'].split(','))),
-                                        excluded_columns = list(map(int, config['QAQC']['excluded_columns'].split(','))),
-                                        daily_temperature_columns = config['QAQC']['daily_temperature_columns'].split(','),
-                                        daily_temperature_columns_and_diurnal_temperature_range = config['QAQC']['daily_temperature_columns_and_diurnal_temperature_range'].split(','),
-                                        daily_precipitation_column = config['QAQC']['daily_precipitation_column'].split(','),
-                                        dry_and_wet_bulb_temperature_columns = config['QAQC']['dry_and_wet_bulb_temperature_columns'].split(','))
+        #     # Module 5: Quality assessment and Quality Control
+        #     qa_qc_checked_data = qa_qc(transcribed_table, station, transient_transcription_output_dir, post_QA_QC_transcribed_hydroclimate_data_dir_station, month_filename,
+        #                                 max_temperature_threshold = float(config['QAQC']['max_temperature_threshold']),
+        #                                 min_temperature_threshold = float(config['QAQC']['min_temperature_threshold']),
+        #                                 decimal_places = int(config['QAQC']['decimal_places']),
+        #                                 uncertainty_margin = float(config['QAQC']['uncertainty_margin']),
+        #                                 header_rows = int(config['QAQC']['header_rows']),
+        #                                 multi_day_totals = config.getboolean('QAQC', 'multi_day_totals'),
+        #                                 multi_day_averages = config.getboolean('QAQC', 'multi_day_averages'),
+        #                                 max_days_for_multi_day_total = int(config['QAQC']['max_days_for_multi_day_total']),
+        #                                 multi_day_totals_rows = list(map(int, config['QAQC']['multi_day_totals_rows'].split(','))),
+        #                                 final_totals_rows = list(map(int, config['QAQC']['final_totals_rows'].split(','))),
+        #                                 excluded_rows = list(map(int, config['QAQC']['excluded_rows'].split(','))),
+        #                                 excluded_columns = list(map(int, config['QAQC']['excluded_columns'].split(','))),
+        #                                 daily_temperature_columns = config['QAQC']['daily_temperature_columns'].split(','),
+        #                                 daily_temperature_columns_and_diurnal_temperature_range = config['QAQC']['daily_temperature_columns_and_diurnal_temperature_range'].split(','),
+        #                                 daily_precipitation_column = config['QAQC']['daily_precipitation_column'].split(','),
+        #                                 dry_and_wet_bulb_temperature_columns = config['QAQC']['dry_and_wet_bulb_temperature_columns'].split(','))
 
         
-        except Exception as e:
-            print(f"Error processing {month_filename}: {e}")
-            continue
+        # except Exception as e:
+        #     print(f"Error processing {month_filename}: {e}")
+        #     continue
 
     # Module 6: Data formatting and Upload
     final_refined_daily_hydroclimate_data_dir_station = os.path.join(final_refined_daily_hydroclimate_data_dir, station)
     os.makedirs(final_refined_daily_hydroclimate_data_dir_station, exist_ok=True)
     
-    data_formatting(post_QA_QC_transcribed_hydroclimate_data_dir_station, final_refined_daily_hydroclimate_data_dir_station, metadata_file_path, station, 
+    formatted_data = data_formatting(post_QA_QC_transcribed_hydroclimate_data_dir_station, final_refined_daily_hydroclimate_data_dir_station, metadata_file_path, formatted_already_digitized_data_dir, station, 
                     date_column = config['DataFormatting']['date_column'].strip(),
                     header_rows = int(config['QAQC']['header_rows']),
                     multi_day_totals = config.getboolean('QAQC', 'multi_day_totals'),
@@ -132,7 +153,12 @@ def process_station(station):
                     excluded_rows = list(map(int, config['QAQC']['excluded_rows'].split(','))),
                     additional_excluded_rows = list(map(int, config['QAQC']['additional_excluded_rows'].split(','))),
                     final_totals_rows = list(map(int, config['QAQC']['final_totals_rows'].split(','))),
-                    uncertainty_margin = float(config['QAQC']['uncertainty_margin']))
+                    uncertainty_margin = float(config['QAQC']['uncertainty_margin']),
+                    max_temperature_threshold = float(config['QAQC']['max_temperature_threshold']),
+                    min_temperature_threshold = float(config['QAQC']['min_temperature_threshold']))
+
+    # if formatted_data:
+    #     all_station_trends.append(formatted_data) # trends in the formatted data
 
     # Extra module: Validation
     validation_dir_station = os.path.join(validation_dir, station)
@@ -151,15 +177,92 @@ def process_station(station):
              additional_excluded_rows = list(map(int, config['QAQC']['additional_excluded_rows'].split(','))),
              final_totals_rows = list(map(int, config['QAQC']['final_totals_rows'].split(','))),
              uncertainty_margin = float(config['QAQC']['uncertainty_margin']))
+    
+    # Return formatted_data only after validation step completes
+    if formatted_data:
+        return formatted_data 
+    else:
+        return None
 
 if __name__ == '__main__':
+    # Trends calculated for all stations
+    all_station_trends = []
+
     if run_mode == 'hpc':
         # HPC Mode: Parallel Processing
         print(f"Running in HPC mode with {num_processors} processors.")
         with mp.Pool(num_processors) as pool:
-            pool.map(process_station, all_stations)
+            all_station_trends = pool.map(process_station, all_stations)
     else:
         # Local Mode: Sequential Processing
         print("Running in Local mode.")
         for station in all_stations:
-            process_station(station)
+            result = process_station(station)
+            if result:
+                all_station_trends.append(result)
+
+    # After all the station are processed
+    # Separate trend metadata (for mapping) from full station results
+    trend_records = []
+    all_cleaned_data = []
+    total_green_cells = {}
+
+
+    for station_result in all_station_trends:
+        if not station_result:
+            continue
+        # Only keep the trend mapping info
+        trend_record = {k: v for k, v in station_result.items() if k in [
+            "station_id", "station_name", "lat", "lon",
+            "trend_max_temperature", "trend_min_temperature", "trend_avg_temperature", "trend_TXx", "trend_TNn"
+        ]}
+        trend_records.append(trend_record)
+
+        # Keep the full cleaned DataFrame for bootstrapping / future regional analysis
+        if "data" in station_result:
+            all_cleaned_data.append(station_result["data"])
+        if "green_cell_count" in station_result:
+            for var, count in station_result["green_cell_count"].items():
+                if var not in total_green_cells:
+                    total_green_cells[var] = 0
+                total_green_cells[var] += count
+        
+    # Save total green cell count to a text file
+    with open(os.path.join(result_maps_dir, "qa_qc_green_cell_summary.txt"), "w") as f:
+        f.write("Total QA/QC-validated (green-highlighted) cell counts across all stations:\n")
+        for var, count in total_green_cells.items():
+            f.write(f"{var}: {count}\n")
+        total_count = sum(total_green_cells.values())
+        f.write(f"\nTotal across all variables: {total_count}\n")
+
+
+    if all_cleaned_data:
+        regional_df = pd.concat(all_cleaned_data, ignore_index=True)
+        #plot_full_period_trend_distribution_three_panel(regional_df, output_folder_path=result_maps_dir, station="Regional", station_name="All Stations Combined")
+        plot_temperature_distribution_shift_by_decade(regional_df, output_folder_path=result_maps_dir, station="Regional", station_name="All Stations Combined")
+        plot_temperature_extremes_three_panel(regional_df, output_folder_path=result_maps_dir, station="Regional", station_name="All Stations Combined")
+    else:
+        print("[INFO] No cleaned station data available for regional trend analysis.")
+
+    # Function to map the trends in all the stations across the region and perform spatial interpolation
+    # trend_df = pd.DataFrame(all_station_trends)
+    # print(trend_df)
+    # plot_trend_interpolation_map(trend_df, region_shapefile_path, result_maps_dir)
+
+    if trend_records:
+        # Build DataFrame for spatial interpolation
+        trend_df = pd.DataFrame(trend_records)
+        print(trend_df)
+        trend_df.to_csv(os.path.join(result_maps_dir, "station_temperature_trends.txt"), sep='\t', index=False)
+
+
+        # Box plot showing the distribution of trends in the temperature considering all stations
+        plot_trend_boxplot_by_station(trend_df, result_maps_dir)
+
+        # Plot spatial trend map
+        plot_trend_interpolation_map(trend_df, region_shapefile_path, result_maps_dir)
+    else: 
+        print("[INFO] No trends station data available for spatial interplolation and distribution of trends")
+
+
+
