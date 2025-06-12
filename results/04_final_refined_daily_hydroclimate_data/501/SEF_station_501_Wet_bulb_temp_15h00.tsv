@@ -9,7 +9,7 @@ Link
 Vbl	tb
 Stat	point
 Units	C
-Meta	Observer=  | QC software = MeteoSaver v1.0 | Note = Transcription software: MeteoSaver v1.0 (https://github.com/VUB-HYDR/MeteoSaver)
+Meta	Observer=  | QC software = MeteoSaver v1.0 | Note = Transcription done using MeteoSaver v1.0 (https://github.com/VUB-HYDR/MeteoSaver) developed by Derrick Muheki at the Department of Water and Climate, Vrije Universiteit Brussel
 Year	Month	Day	Hour	Minute	Period	Value	Meta
 1972	10	1	15	0	0	NaN	
 1972	10	2	15	0	0	NaN	

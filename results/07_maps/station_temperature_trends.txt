@@ -1,0 +1,9 @@
+station_id	station_name	lat	lon	trend_max_temperature	trend_min_temperature	trend_avg_temperature	trend_TXx	trend_TNn
+203	Binga 	2.3	20.5					
+209	Loeka-Bumba	2.25	22.8167					
+501	Kisanga-Plateau	-11.7333	27.4167					
+508	Kaniama-Kasese							
+601	Mulungu-Mulohe	-2.3	28.7833	0.02499999999999991	0.03243243243243241	0.02894736842105267	0.023764705882352927	0.016666666666666607
+702	Nioka-Lekwa	2.1167	30.6333					
+904	Rwindi	-0.7833	29.2833					
+905	Mutsora	0.3167	29.7333					
