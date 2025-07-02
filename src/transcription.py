@@ -565,7 +565,7 @@ def merge_excel_files(file1, file2, output_file, start_row, end_row):
 
 
 
-def add_missing_boxes(sorted_rows, max_cell_width_threshold=120, max_cell_height_threshold=50, max_columns=24):
+def add_missing_boxes(sorted_rows, max_cell_width_threshold=130, max_cell_height_threshold=50, max_columns=24):
     updated_rows = []
 
     for row in sorted_rows:
@@ -609,16 +609,30 @@ def add_missing_boxes(sorted_rows, max_cell_width_threshold=120, max_cell_height
             num_missing_boxes = min(int(gap // max_cell_width_threshold), max_columns - len(new_boxes))
 
             total_box_width = num_missing_boxes * max_cell_width_threshold
-            start_x = gap_start_x + (gap - total_box_width) / 2
+            # start_x = gap_start_x + (gap - total_box_width) / 2
+
+            # new_boxes_in_gap = []
+            # for j in range(num_missing_boxes):
+            #     new_x = start_x + j * max_cell_width_threshold
+            #     new_box = (int(new_x), y1, max_cell_width_threshold, max_cell_height_threshold)
+            #     new_boxes_in_gap.append(new_box)
+            
+            # Dynamically compute width so that all boxes fit perfectly into the gap
+            dynamic_cell_width = gap / (num_missing_boxes + 1)
 
             new_boxes_in_gap = []
             for j in range(num_missing_boxes):
-                new_x = start_x + j * max_cell_width_threshold
-                new_box = (int(new_x), y1, max_cell_width_threshold, max_cell_height_threshold)
-                new_boxes_in_gap.append(new_box)
-
                 if len(new_boxes) + len(new_boxes_in_gap) >= max_columns:
                     break
+
+                center_x = gap_start_x + (j + 1) * dynamic_cell_width
+                new_x = int(center_x - dynamic_cell_width / 2)
+
+                new_box = (new_x, y1, int(dynamic_cell_width), max_cell_height_threshold)
+                new_boxes_in_gap.append(new_box)
+            
+                # if len(new_boxes) + len(new_boxes_in_gap) >= max_columns:
+                #     break
 
             new_boxes[i + 1:i + 1] = new_boxes_in_gap
 
@@ -705,7 +719,8 @@ def transcription(detected_table_cells, ocr_model, tesseract_path, transient_tra
     new_contours = detected_table_cells[0]
 
     image_with_all_bounding_boxes = detected_table_cells[1]
-    table_copy = detected_table_cells[2]
+    table_copy = detected_table_cells[2] # Binarized table image using Adaptive Thresholding
+    # table_copy = detected_table_cells[3] # Table image but as a clip of the original image (No Binarization)
 
     # Get the dimensions of the loaded image. Here, particulary the image/table width is very important for the column placement of cells/bounding boxes
     image_height, image_width, image_channels = image_with_all_bounding_boxes.shape
@@ -803,6 +818,8 @@ def transcription(detected_table_cells, ocr_model, tesseract_path, transient_tra
             if row is not None:  # Skip None values to avoid errors
                 row.sort(key=lambda c: cv2.boundingRect(c)[1])
 
+        # Dictionary to track assigned columns per row
+        assigned_columns_per_row = {}
         for row_index, row in enumerate(sorted_rows, start=1):
             if row is None:
                 continue  # Skip processing for empty rows
@@ -812,8 +829,8 @@ def transcription(detected_table_cells, ocr_model, tesseract_path, transient_tra
                 x, y, w, h = cv2.boundingRect(contour)
 
                 # Define increase factors for bounding box modification
-                increase_factor_width = 0.07  # Increase width by 20%
-                increase_factor_height = 0.35  # Increase height by 25%
+                increase_factor_width = 0.07  # Increase width by 7%
+                increase_factor_height = 0.20  # Increase height by 20%
 
                 # Expand width while keeping it centered
                 new_w = int(w * (1 + increase_factor_width))  # Increase width
@@ -832,11 +849,29 @@ def transcription(detected_table_cells, ocr_model, tesseract_path, transient_tra
                  # Draw bounding box on the visualization image
                 cv2.rectangle(ROIs_image, (x, y), (x + w, y + h), (0, 0, 255), 3)
 
+                # ********
                 # OCR
                 # Crop each cell using the bounding rectangle coordinates
                 ROI = table_copy[y:y+h, x:x+w]  # Ensure consistency with visualization bounding boxes
+                # ********
 
-                
+                # # Crop raw cell from original (non-binarized) image
+                # cell_crop_color = table_copy[y:y+h, x:x+w]  # Now table_copy is the original image
+
+                # # Convert to grayscale
+                # gray_cell = cv2.cvtColor(cell_crop_color, cv2.COLOR_BGR2GRAY)
+
+                # # Binarize using INVERTED thresholding (to thicken digits)
+                # # binarized_inv = cv2.adaptiveThreshold(gray_cell, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 35, 4)  # (21,4) was good.
+                # binarized_inv = cv2.adaptiveThreshold(gray_cell, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 51,6)   # ahd it at (51,6) before   (35,6) was good but make some light text disappear. 
+
+                # # Invert back to get black text on white background
+                # binarized_cell = cv2.bitwise_not(binarized_inv)
+
+                # # Assign this as your final ROI for OCR
+                # ROI = binarized_cell
+
+
                 # ### FOR ILLUSTRATION PURPOSES: This line below is about drawing a rectangle on the image with the shape of the bounding box. Its not needed for the OCR. This is only for debugging purposes.
                 # # image_with_all_bounding_boxes = cv2.rectangle(image_with_all_bounding_boxes, (x, y), (x + w, y + h), (0, 255, 0), 5)
 
@@ -911,10 +946,11 @@ def transcription(detected_table_cells, ocr_model, tesseract_path, transient_tra
                         # # Determine the cell reference using the x coodrinate of the bounding box, row index, maximum column number, and image/table width
                         # cell_ref = calculate_cell_reference(x, row_index, max_columns=24, table_width=image_width) # e.g., A1, B5, etc.
 
-                        # Dictionary to track assigned columns per row
-                        assigned_columns_per_row = {}
+                        # # Dictionary to track assigned columns per row
+                        # assigned_columns_per_row = {}
                         # cell_ref = calculate_cell_reference(x, new_w, row_index, max_columns=24, table_width=image_width) # e.g., A1, B5, etc.
                         cell_ref = calculate_cell_reference(x, w, row_index, assigned_columns_per_row, max_columns=24, table_width=image_width)
+                        # print(f"saving to {cell_ref}")
                         # # Additional check: Incase the cell (cell_ref) is already occupied with transcribed text. We then opt for the cell below within the same column
                         # column_letter = openpyxl.utils.get_column_letter(math.floor(x / image_width * no_of_columns) + 1)
                         # initial_row_index = row_index  # Store the initial row index
@@ -940,7 +976,32 @@ def transcription(detected_table_cells, ocr_model, tesseract_path, transient_tra
                         for row in ws.iter_rows(min_row=1, max_row=no_of_rows, min_col=1, max_col=no_of_columns):
                             for cell in row:
                                 cell.border = thin_border
-                    
+
+                        
+                        ## CONTINOUS LEARNING (MACHINE-LEARNING) OF THE OCR
+                        
+                        # Adjust cell_ref to match final Excel layout: 2 columns inserted + 3 header rows added
+                        adjusted_column_index = openpyxl.utils.column_index_from_string(cell_ref[0]) + 2  # +2 for two inserted columns on the left side of the excel sheet. In our case these were the 'Pentad No.' and the Date. Change this depending on your sheets or make it +0 (Zero) if there were no extra columns to the left
+                        adjusted_row_index = int(cell_ref[1:]) + int(no_of_rows_including_headers - no_of_rows)  # In our case: = +3 for three inserted header rows. See # SPECIAL ADDITION TO CODE / CUSTOMIZATION below
+
+                        # Convert adjusted column index back to letter
+                        adjusted_column_letter = openpyxl.utils.get_column_letter(adjusted_column_index)
+
+                        # Construct adjusted Excel-style reference
+                        adjusted_cell_ref = f"{adjusted_column_letter}{adjusted_row_index}"
+                        
+                        # Construct a filename for the clipped cell imgae (ROI) using month_filename and Excel cell reference
+                        roi_filename = f"{month_filename}_{adjusted_cell_ref}.png"
+
+                        # Save the clipped cell image (ROI) for further training of the OCR model; For continous learning of different handwritting styles usign correct/confirmed values in the Quality Assessment and Quality Control module
+                        # Set path to save
+                        roi_save_dir = os.path.join(transient_transcription_output_dir, station, 'clipped_cells')
+                        os.makedirs(roi_save_dir, exist_ok=True)
+
+                        full_roi_save_path = os.path.join(roi_save_dir, roi_filename)
+
+                        # Save the ROI image
+                        cv2.imwrite(full_roi_save_path, ROI)
 
                     else:
                         print('No values detected in clip')
