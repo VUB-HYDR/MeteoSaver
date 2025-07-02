@@ -11,26 +11,26 @@ Stat	point
 Units	C
 Meta	Observer=  | QC software = MeteoSaver v1.0 | Note = Transcription done using MeteoSaver v1.0 (https://github.com/VUB-HYDR/MeteoSaver) developed by Derrick Muheki at the Department of Water and Climate, Vrije Universiteit Brussel
 Year	Month	Day	Hour	Minute	Period	Value	Meta
-1973	11	1	18	0	0	NaN	
-1973	11	2	18	0	0	NaN	
-1973	11	3	18	0	0	NaN	
-1973	11	4	18	0	0	NaN	
+1973	11	1	18	0	0	20.3	
+1973	11	2	18	0	0	18.0	
+1973	11	3	18	0	0	20.2	
+1973	11	4	18	0	0	20.8	
 1973	11	5	18	0	0	19.6	
-1973	11	6	18	0	0	21.8	
+1973	11	6	18	0	0	21.7	
 1973	11	7	18	0	0	21.5	
 1973	11	8	18	0	0	19.8	
 1973	11	9	18	0	0	19.7	
 1973	11	10	18	0	0	19.2	
-1973	11	11	18	0	0	20.9	
-1973	11	12	18	0	0	23.4	
+1973	11	11	18	0	0	NaN	
+1973	11	12	18	0	0	NaN	
 1973	11	13	18	0	0	20.9	
 1973	11	14	18	0	0	22.0	
 1973	11	15	18	0	0	23.1	
 1973	11	16	18	0	0	NaN	
-1973	11	17	18	0	0	NaN	
+1973	11	17	18	0	0	20.6	
 1973	11	18	18	0	0	NaN	
 1973	11	19	18	0	0	NaN	
-1973	11	20	18	0	0	NaN	
+1973	11	20	18	0	0	20.2	
 1973	11	21	18	0	0	NaN	
 1973	11	22	18	0	0	NaN	
 1973	11	23	18	0	0	NaN	
