@@ -196,11 +196,11 @@ def analyze_temperature_trends_with_linear_regression(df, output_folder_path, st
     for temp_type in ["Max_Temperature", "Min_Temperature", "Avg_Temperature"]:
         df_temp = df.dropna(subset=[temp_type]).copy()
         if df_temp.empty:
-            print(f"[Warning] No valid {temp_type} data at station {station}. Skipping.")
+            # print(f"[Warning] No valid {temp_type} data at station {station}. Skipping.")
             continue
 
         if df_temp["Year_Num"].nunique() < 2:
-            print(f"[Warning] Not enough variation in year data for {temp_type} at station {station}. Skipping.")
+            # print(f"[Warning] Not enough variation in year data for {temp_type} at station {station}. Skipping.")
             continue
 
         X = df_temp["Year_Num"].values.reshape(-1, 1)
@@ -223,7 +223,7 @@ def analyze_temperature_trends_with_linear_regression(df, output_folder_path, st
                      fontsize=10, color=trend_colors[temp_type], fontweight='bold')
 
     if not models:
-        print(f"[Error] No valid data for regression at station {station}. Skipping plot.")
+        # print(f"[Error] No valid data for regression at station {station}. Skipping plot.")
         return None
 
     plt.xlabel("Year")
@@ -235,7 +235,7 @@ def analyze_temperature_trends_with_linear_regression(df, output_folder_path, st
     os.makedirs(output_folder_path, exist_ok=True)
     trend_plot_path = os.path.join(output_folder_path, f"temperature_trend_plot_{station}_using_linear_regression.jpg")
     plt.savefig(trend_plot_path, format="jpg", dpi=300)
-    print(f"Figure saved at: {trend_plot_path}")
+    # print(f"Figure saved at: {trend_plot_path}")
     plt.close()
 
     return trend_slopes
@@ -322,11 +322,11 @@ def analyze_temperature_trends_with_theilsen(df, output_folder_path, station, st
         df_temp = df.dropna(subset=[temp_type]).copy()
 
         if df_temp.empty:
-            print(f"[Warning] No valid {temp_type} data at station {station}. Skipping.")
+            # print(f"[Warning] No valid {temp_type} data at station {station}. Skipping.")
             continue
 
         if df_temp["Year_Num"].nunique() < 2:
-            print(f"[Warning] Not enough variation in year data for {temp_type} at station {station}. Skipping.")
+            # print(f"[Warning] Not enough variation in year data for {temp_type} at station {station}. Skipping.")
             continue
 
         x = df_temp["Year_Num"].values
@@ -373,7 +373,7 @@ def analyze_temperature_trends_with_theilsen(df, output_folder_path, station, st
     os.makedirs(output_folder_path, exist_ok=True)
     plot_path = os.path.join(output_folder_path, f"temperature_trend_{station}_using_theilsen.jpg")
     plt.savefig(plot_path, dpi=300)
-    print(f"Theil–Sen trend plot saved at: {plot_path}")
+    # print(f"Theil–Sen trend plot saved at: {plot_path}")
     plt.close()
 
     # === Compute TXx (annual max of daily max temp) and TNn (annual min of daily min temp) ===
@@ -389,7 +389,7 @@ def analyze_temperature_trends_with_theilsen(df, output_folder_path, station, st
             theil_slope, _, _, _ = theilslopes(y, x, 0.95)
             extreme_trends["trend_TXx"] = theil_slope
         else:
-            print(f"[Warning] Not enough years for TXx trend at {station}")
+            # print(f"[Warning] Not enough years for TXx trend at {station}")
             extreme_trends["trend_TXx"] = np.nan
 
     # TNn
@@ -402,7 +402,7 @@ def analyze_temperature_trends_with_theilsen(df, output_folder_path, station, st
             theil_slope, _, _, _ = theilslopes(y, x, 0.95)
             extreme_trends["trend_TNn"] = theil_slope
         else:
-            print(f"[Warning] Not enough years for TNn trend at {station}")
+            # print(f"[Warning] Not enough years for TNn trend at {station}")
             extreme_trends["trend_TNn"] = np.nan
 
     # Merge into the main trend_slopes dict
@@ -413,7 +413,7 @@ def analyze_temperature_trends_with_theilsen(df, output_folder_path, station, st
 
 def analyze_precipitation_trend_theilsen(df, output_folder_path, station, station_name):
     if "Precipitation" not in df.columns:
-        print(f"'Precipitation' column not found in the file.")
+        # print(f"'Precipitation' column not found in the file.")
         return None
 
     df["Date"] = pd.to_datetime(df[["Year", "Month", "Day"]], errors="coerce")
@@ -421,7 +421,7 @@ def analyze_precipitation_trend_theilsen(df, output_folder_path, station, statio
     df_clean = df.dropna(subset=["Precipitation"])
 
     if df_clean.empty or df_clean["Year_Num"].nunique() < 2:
-        print(f"[Warning] Not enough valid or varied data for station {station}.")
+        # print(f"[Warning] Not enough valid or varied data for station {station}.")
         return None
 
     x = df_clean["Year_Num"].values
@@ -447,7 +447,7 @@ def analyze_precipitation_trend_theilsen(df, output_folder_path, station, statio
     os.makedirs(output_folder_path, exist_ok=True)
     plot_path = os.path.join(output_folder_path, f"precipitation_trend_theilsen_{station}.jpg")
     plt.savefig(plot_path, dpi=300)
-    print(f"Precipitation trend plot saved at: {plot_path}")
+    # print(f"Precipitation trend plot saved at: {plot_path}")
     plt.close()
 
     return theil_slope
@@ -457,14 +457,14 @@ def analyze_precipitation_trend_theilsen(df, output_folder_path, station, statio
 
 def analyze_monthly_precipitation_trend_theilsen(df, output_folder_path, station, station_name):
     if "Precipitation" not in df.columns:
-        print(f"'Precipitation' column not found in the file.")
+        # print(f"'Precipitation' column not found in the file.")
         return None
 
     df["Date"] = pd.to_datetime(df[["Year", "Month", "Day"]], errors="coerce")
     df_clean = df.dropna(subset=["Precipitation"])
 
     if df_clean.empty:
-        print(f"No valid precipitation data at station {station}.")
+        # print(f"No valid precipitation data at station {station}.")
         return None
 
     df_clean = df_clean.copy()
@@ -474,7 +474,7 @@ def analyze_monthly_precipitation_trend_theilsen(df, output_folder_path, station
     monthly_avg["Year_Fraction"] = monthly_avg["Date"].dt.year + (monthly_avg["Date"].dt.month - 1) / 12.0
 
     if monthly_avg["Year_Fraction"].nunique() < 2:
-        print(f"[Warning] Not enough monthly data variation for station {station}.")
+        # print(f"[Warning] Not enough monthly data variation for station {station}.")
         return None
 
     x = monthly_avg["Year_Fraction"].values
@@ -500,7 +500,7 @@ def analyze_monthly_precipitation_trend_theilsen(df, output_folder_path, station
     os.makedirs(output_folder_path, exist_ok=True)
     plot_path = os.path.join(output_folder_path, f"monthly_precipitation_trend_theilsen_{station}.jpg")
     plt.savefig(plot_path, dpi=300)
-    print(f" Monthly precipitation trend plot saved at: {plot_path}")
+    # print(f" Monthly precipitation trend plot saved at: {plot_path}")
     plt.close()
 
     return theil_slope
@@ -530,7 +530,7 @@ def plot_monthly_mean_temperatures(df, output_folder_path, station, station_name
     os.makedirs(output_folder_path, exist_ok=True)
     plot_path = os.path.join(output_folder_path, f"monthly_mean_temperatures_{station}.jpg")
     plt.savefig(plot_path, dpi=300)
-    print(f"Monthly mean temperature plot saved at: {plot_path}")
+    # print(f"Monthly mean temperature plot saved at: {plot_path}")
     plt.close()
 
 
@@ -553,7 +553,7 @@ def plot_monthly_precipitation(df, output_folder_path, station, station_name):
     os.makedirs(output_folder_path, exist_ok=True)
     plot_path = os.path.join(output_folder_path, f"monthly_precipitation_{station}.jpg")
     plt.savefig(plot_path, dpi=300)
-    print(f"Monthly precipitation plot saved at: {plot_path}")
+    # print(f"Monthly precipitation plot saved at: {plot_path}")
     plt.close()
 
 
@@ -721,7 +721,7 @@ def plot_temperature_extremes_three_panel(df, output_folder_path, station, stati
         df_valid = df.dropna(subset=[temp_column])
         if df_valid.empty:
             ax.set_visible(False)
-            print(f"[Warning] No valid {temp_column} data at station {station_name}. Skipping.")
+            # print(f"[Warning] No valid {temp_column} data at station {station_name}. Skipping.")
             continue
 
         thresholds = np.percentile(df_valid[temp_column], bins)
@@ -739,7 +739,7 @@ def plot_temperature_extremes_three_panel(df, output_folder_path, station, stati
             # Count how many *years* in the decade have at least one valid day
             valid_years_with_data = df_period.groupby("Year_Num")[temp_column].apply(lambda x: x.notna().sum() > 0).sum()
             if valid_years_with_data < 5: # ensures only decades with at least 5 years of valid data are included in the results
-                print(f"[Info] Skipping {label} for {var_name} due to insufficient valid years ({valid_years_with_data}/10).")
+                # print(f"[Info] Skipping {label} for {var_name} due to insufficient valid years ({valid_years_with_data}/10).")
                 continue
 
             total_years = period["range"][1] - period["range"][0]
@@ -810,7 +810,7 @@ def plot_temperature_extremes_three_panel(df, output_folder_path, station, stati
     plot_path = os.path.join(output_folder_path, f"extreme_percentiles_{station}.jpg")
     plt.savefig(plot_path, dpi=300, bbox_inches='tight')
     plt.close()
-    print(f"3-panel percentile extremes plot saved at: {plot_path}")
+    # print(f"3-panel percentile extremes plot saved at: {plot_path}")
 
 
 
@@ -832,7 +832,7 @@ def plot_full_period_trend_distribution_three_panel(df, output_folder_path, stat
         df_var = df.dropna(subset=[column])
         if df_var["Year_Num"].nunique() < 2:
             ax.set_visible(False)
-            print(f"[Warning] Not enough data for {column} at {station_name}")
+            # print(f"[Warning] Not enough data for {column} at {station_name}")
             continue
 
         x = df_var["Year_Num"].values
@@ -901,7 +901,7 @@ def plot_full_period_trend_distribution_three_panel(df, output_folder_path, stat
     save_path = os.path.join(output_folder_path, f"full_period_trend_distribution_{station}.jpg")
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.close()
-    print(f"Full-period 3-panel trend distribution plot saved at: {save_path}")
+    # print(f"Full-period 3-panel trend distribution plot saved at: {save_path}")
 
 
 def plot_temperature_distribution_shift_by_decade(df, output_folder_path, station, station_name):
@@ -945,7 +945,7 @@ def plot_temperature_distribution_shift_by_decade(df, output_folder_path, statio
             # values = df_decade[column].values
             values = df_decade[column].dropna().values
             if len(values) < 2:
-                print(f"[WARNING] Skipping KDE for {label} in {decade} due to insufficient data.")
+                # print(f"[WARNING] Skipping KDE for {label} in {decade} due to insufficient data.")
                 continue  # Skip this decade
 
             
@@ -980,7 +980,7 @@ def plot_temperature_distribution_shift_by_decade(df, output_folder_path, statio
     save_path = os.path.join(output_folder_path, f"temperature_distribution_shift_by_decade_{station}.jpg")
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.close()
-    print(f"Temperature distribution shift plot saved at: {save_path}")
+    # print(f"Temperature distribution shift plot saved at: {save_path}")
 
 
 def convert_to_sef_with_metadata(
@@ -1117,13 +1117,13 @@ def convert_to_sef_with_metadata(
 def integrate_extra_data_if_available(merged_df, station, extra_data_directory):
     station_folder = os.path.join(extra_data_directory, f"{int(station):03d}")
     if not os.path.isdir(station_folder):
-        print(f"[INFO] No extra data folder for station {station}")
+        # print(f"[INFO] No extra data folder for station {station}")
         return merged_df
 
     # Look for the INERA Excel file
     excel_files = [f for f in os.listdir(station_folder) if f.endswith('.xlsx')]
     if not excel_files:
-        print(f"[INFO] No Excel file found in folder: {station_folder}")
+        # print(f"[INFO] No Excel file found in folder: {station_folder}")
         return merged_df
 
     file_path = os.path.join(station_folder, excel_files[0])
@@ -1178,7 +1178,7 @@ def integrate_extra_data_if_available(merged_df, station, extra_data_directory):
             merged_df = pd.concat([merged_df, pd.DataFrame([new_row])], ignore_index=True)
 
     merged_df = merged_df.sort_values(by='Date').reset_index(drop=True)
-    print(f"[INFO] Integrated extra data for station {station}: {merged_df['Source'].value_counts().to_dict()}")
+    # print(f"[INFO] Integrated extra data for station {station}: {merged_df['Source'].value_counts().to_dict()}")
     return merged_df
 
 
@@ -1922,13 +1922,13 @@ def plot_trend_interpolation_map(trend_df, region_shapefile_path, output_folder_
         required_columns = ['lat', 'lon', var_key]
         for col in required_columns:
             if col not in trend_df.columns:
-                print(f"[WARNING] Missing column '{col}' in trend_df. Skipping variable: {var_key}")
+                # print(f"[WARNING] Missing column '{col}' in trend_df. Skipping variable: {var_key}")
                 continue
 
         # Drop rows with missing trend or missing lat/lon
         subset = trend_df.dropna(subset=required_columns)
         if subset.empty:
-            print(f"[WARNING] No valid data for {var_key} after filtering missing lat/lon. Skipping.")
+            # print(f"[WARNING] No valid data for {var_key} after filtering missing lat/lon. Skipping.")
             continue
 
         lons = subset["lon"].values
@@ -1982,13 +1982,13 @@ def plot_trend_interpolation_map(trend_df, region_shapefile_path, output_folder_
         required_columns = ['lat', 'lon', var_key]
         for col in required_columns:
             if col not in trend_df.columns:
-                print(f"[WARNING] Missing column '{col}' in trend_df. Skipping variable: {var_key}")
+                # print(f"[WARNING] Missing column '{col}' in trend_df. Skipping variable: {var_key}")
                 continue
 
         # Drop rows with missing trend or missing lat/lon
         subset = trend_df.dropna(subset=required_columns)
         if subset.empty:
-            print(f"[WARNING] No valid data for {var_key} after filtering missing lat/lon. Skipping.")
+            # print(f"[WARNING] No valid data for {var_key} after filtering missing lat/lon. Skipping.")
             continue
 
         lons = subset["lon"].values
@@ -2013,7 +2013,7 @@ def plot_trend_interpolation_map(trend_df, region_shapefile_path, output_folder_
     plt.savefig(save_path, dpi=300)
     plt.close()
 
-    print(f"[INFO] Interpolated trend map saved at: {save_path}")
+    # print(f"[INFO] Interpolated trend map saved at: {save_path}")
 
 
 def plot_trend_boxplot_by_station(trend_df, output_folder_path):
@@ -2038,7 +2038,7 @@ def plot_trend_boxplot_by_station(trend_df, output_folder_path):
     save_path = os.path.join(output_folder_path, "trend_boxplot_considering_all_stations.jpg")
     plt.savefig(save_path, dpi=300)
     plt.close()
-    print(f"[INFO] Boxplot saved to {save_path}")
+    # print(f"[INFO] Boxplot saved to {save_path}")
 
     
     ## Second plot with TXx and TNn

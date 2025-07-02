@@ -201,7 +201,7 @@ def deskew(image):
 
     # If the detected angle is too small, no need to rotate
     if abs(hor_angle) < 0.1:
-        print("[DEBUG] No significant skew detected. Returning original image.")
+        print("[DEBUG] No significant skew detected. Returning original image ...")
         return image
 
     # Get image dimensions
@@ -214,9 +214,9 @@ def deskew(image):
     # Rotate the image using affine transformation
     deskewed_image = cv2.warpAffine(image, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
 
-    print(f"[DEBUG] Detected skew angle: {hor_angle:.2f} degrees (Page Rotated)")
+    print(f"[DEBUG] Detected skew angle: {hor_angle:.2f} degrees (Page Rotated) ...")
 
-    return deskewed_image
+    return deskewed_image, hor_angle
 
 
 
@@ -486,6 +486,8 @@ def table_and_cell_detection(image_in_grayscale, binarized_image, original_image
 
 
     # Here, we employ ML algorithms from Open Source Computer Vision (OpenCV) following methodologies similar to those described in https://livefiredev.com/how-to-extract-table-from-image-in-python-opencv-ocr/ [GitHub repository: \url{https://github.com/livefiredev/ocr-extract-table-from-image-python}, (last access: 19 July 2024)], but further customizing them for our case study.
+    
+    ## STEP 1: DETECT THE TABLE FROM AN IMAGE/SHEET
     ## Using the pre-processing image to detect the table from the record sheets
     # Here, the threshold value for pixel intensities = 0, and the value 255 is assigned if the pixel value is above the threshold
     thresh = cv2.threshold(image_in_grayscale,0,255,cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1] 
@@ -495,9 +497,9 @@ def table_and_cell_detection(image_in_grayscale, binarized_image, original_image
     # Find contours
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     # Minimum dimensions of table
-    threshold_area = 4  # Minimum contour area to consider as a cell
-    threshold_height = 2   # Minimum height of the cell
-    threshold_width = 2    # Minimum width of the cell
+    threshold_area = min_cell_height_threshold * min_cell_width_threshold  # Minimum contour area to consider as a cell
+    threshold_height = min_cell_height_threshold   # Minimum height of the cell
+    threshold_width = min_cell_width_threshold    # Minimum width of the cell
     # Initialize variables for the largest contour
     largest_contour_area = 0
     largest_contour = None
@@ -511,7 +513,7 @@ def table_and_cell_detection(image_in_grayscale, binarized_image, original_image
             if contour_area > largest_contour_area:
                 largest_contour_area = contour_area
                 largest_contour = contour
-    ## Only for visualization purposes 
+    ## Only for visualization purposes. Uncomment this to plot the detected table from the entire image/sheet
     # # Draw bounding box for the largest contour (if found), which here represents the table on the record sheets
     # if largest_contour is not None:
     #     x, y, w, h = cv2.boundingRect(largest_contour)
@@ -539,9 +541,14 @@ def table_and_cell_detection(image_in_grayscale, binarized_image, original_image
             # These are therefore the AUTO-DETECTED TABLES using openCV 
             table = binarized_image[y + clip_up:y + h - clip_down , x + clip_left:x + w - clip_right] # clip out the table (here, the largest contour) from the original image. ** - 420 here to clip out the header rows from the table image and -270 is for the below the table
             
-            table = deskew(table) # Deskew the image, # Optional, uncomment if you'd like to use this: Incase some of your images are skewed.
+            table, skew_angle = deskew(table) # Deskew the image, # Optional, uncomment if you'd like to use this: Incase some of your images are skewed.
             
             table_original_image = original_image[y + clip_up:y + h - clip_down , x + clip_left:x + w - clip_right] # clip out the table (here, the largest contour) from the original image. ** - 420 here to clip out the header rows from the table image and -270 is for the below the table
+            # Apply same rotation to original image
+            (h, w) = table_original_image.shape[:2]
+            center = (w // 2, h // 2)
+            M = cv2.getRotationMatrix2D(center, -skew_angle, 1.0)
+            table_original_image = cv2.warpAffine(table_original_image, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
             # cv2.imwrite('table_original_image.jpg', table_original_image)
 
         else: # This indicates that the actual table was not detected from the image rather the whole sheet as a the table (for example, due to thick page boarders detected as a table)
@@ -553,8 +560,7 @@ def table_and_cell_detection(image_in_grayscale, binarized_image, original_image
 
             table = binarized_image[y + clip_y + 630:y + h - clip_y - 300, x + clip_x + 350:x + w - clip_x - 180]  # Here we manually clip the sheets to ensure clipping of the HEADERS and ROW LABELS (Date & Pentad no. in our case) from the table (table detected manually). Adjust this to your case study.
             table_original_image = original_image[y + clip_y + 630:y + h - clip_y - 300, x + clip_x + 350:x + w - clip_x - 180]
-            
-            
+                    
     else:
         # If no largest contour is detected. This indicates that the NO table was not detected from the image. Therefore we use the  entire image and make use of the knowledge of the average table dimensions (in pixels) in relation to the images that were determined from our sample sheets in the dataset to determine location of the table.
         # This is thus the MANUAL alternative to the table detection.
@@ -572,22 +578,13 @@ def table_and_cell_detection(image_in_grayscale, binarized_image, original_image
         full_detected_table_with_labels = table 
         # cv2.imwrite('table_original_image.jpg', table_original_image)
 
-
     ## Detecting the vertical and horizontal (both dotted and bold) in the table using ML algorithms
     # Thresholding to reduce the image to black or white pixels
     if table is None or table.size == 0:
         print(f"Error: A table is not dectected for station: {station}, file: {month_filename}")
         return None  # Exit the function and return None
     else:
-        table_img_bin = table
-
-    # # Apply noise reduction
-    # table_img_bin = reduce_noise(table_img_bin)
-
-    # Remove only long vertical lines while keeping text intact
-    table_img_bin = remove_vertical_lines(table_img_bin)
-
-
+        table_img_bin = table # detected table as a binary image
 
     # Save the binary image for use later in detecting text
     save_dir = os.path.join(transient_transcription_output_dir, station)
@@ -595,22 +592,35 @@ def table_and_cell_detection(image_in_grayscale, binarized_image, original_image
     save_path = os.path.join(save_dir, 'table_binarized.jpg')
     cv2.imwrite(save_path, table_img_bin)
     
+
+
+    ## STEP 2: DETECT THE HORIZONTAL AND VERTICAL LINES OF THE TABLE
     # Invert the binarized image of the table
     img_bin = 255-table_img_bin
+
     # Detect the vertical lines in the image
     vertical_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, np.array(table).shape[1]//50)) # The '//50' divides the length of the array (table) by 50, likely to obtain a fraction of the length for the structuring element,
     eroded_image = cv2.erode(img_bin, vertical_kernel, iterations=1)
     vertical_lines = cv2.dilate(eroded_image, vertical_kernel, iterations=5)
+
     # Detect the horizontal lines in the image
     hor_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (np.array(table).shape[1]//60, 1)) # The '//20' divides the width of the array (table) by 20, likely to obtain a fraction of the width for the structuring element.
     eroded_image= cv2.erode(img_bin, hor_kernel, iterations=1)
     horizontal_lines = cv2.dilate(eroded_image, hor_kernel, iterations=5)
-    # Blending the imaegs with the vertical lines and the horizontal lines 
+    
+    # Blending the images with the vertical lines and the horizontal lines 
     combined_vertical_and_horizontal_lines = cv2.addWeighted(vertical_lines, 1, horizontal_lines, 1, 1)
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
     combined_image_dilated = cv2.dilate(combined_vertical_and_horizontal_lines, kernel, iterations=5)
+    
+    # # Only for visualization purposes. Uncomment the lines below to visualize the detected horizontal and vertical lines in the table
+    # plt.imshow(combined_image_dilated, cmap="gray")
+    # plt.title("combined_lines_image")
+    # plt.show()
+
     # Remove the lines from the image (table)
     image_without_lines = cv2.subtract(img_bin, combined_image_dilated)
+    
     # Remove smaller 'still-visible' lines through noise removal
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
     image_without_lines_noise_removed = cv2.erode(image_without_lines, kernel, iterations=1)
@@ -618,13 +628,14 @@ def table_and_cell_detection(image_in_grayscale, binarized_image, original_image
     
 
 
-    # Step 1: Detect all connected components
+    ## STEP 3: DETECT AND REMOVE THE NOISE SUCH AS SMALL DOTS ON OUR TABLE IMAGE
+    # Detect all connected (text) components
     num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(image_without_lines_noise_removed, connectivity=8)
 
     # Create a mask to keep only valid text components
     filtered_image = np.zeros_like(image_without_lines_noise_removed)
 
-    # Set thresholds
+    # Set text thresholds (in pixels)
     ASPECT_RATIO_THRESHOLD = 4  # If Width / Height > 4 (was 4 before this new check), it's considered horizontal noise
     HEIGHT_THRESHOLD = 5  # Remove any blobs with height less than this
     PROXIMITY_THRESHOLD = 5  # Maximum distance (in pixels) to consider a dot "close" to a number
@@ -632,7 +643,7 @@ def table_and_cell_detection(image_in_grayscale, binarized_image, original_image
     # Store y-coordinates and x-limits of horizontal dots **ONLY NEAR TEXT**
     horizontal_lines = []
 
-    # Step 2: Identify large text components (potential numbers)
+    # Identify large text components (potential numbers)
     text_components = []
     dots_to_remove = np.zeros_like(labels)  # Mask for dots to be removed
 
@@ -642,18 +653,19 @@ def table_and_cell_detection(image_in_grayscale, binarized_image, original_image
         aspect_ratio = w / h  # Compute aspect ratio
 
         # Keep only real text (numbers) as reference components
-        if area > 100 and aspect_ratio < ASPECT_RATIO_THRESHOLD and h > HEIGHT_THRESHOLD:   # was 100 before this check, then i tried 50
+        if area > 100 and aspect_ratio < ASPECT_RATIO_THRESHOLD and h > HEIGHT_THRESHOLD: 
             text_components.append((x, y, w, h))
             filtered_image[labels == i] = 255  # Keep text
-        
+    
         else:
             dots_to_remove[labels == i] = 255  # Mark dots for removal
 
+    # # Only for visualization purposes. Uncomment the lines below to visualize the filtered table where all the dots and noise have been removed from the image
     # plt.imshow(filtered_image, cmap="gray")
     # plt.title("First Filtered Image - No Dots - No Lines")
     # plt.show()
 
-    # Step 3: Process small dots and keep only those near text
+    # Process small dots (very small blobs) and keep only those near the large blobs (text/digit locations)
     for i in range(1, num_labels):
         x, y, w, h, area = stats[i, cv2.CC_STAT_LEFT], stats[i, cv2.CC_STAT_TOP], stats[i, cv2.CC_STAT_WIDTH], stats[i, cv2.CC_STAT_HEIGHT], stats[i, cv2.CC_STAT_AREA]
 
@@ -675,81 +687,87 @@ def table_and_cell_detection(image_in_grayscale, binarized_image, original_image
 
         if keep_dot:
             filtered_image[labels == i] = 255  # Keep dots near numbers
-        # else:
-        #     dots_to_remove[labels == i] = 255  # Mark dots for removal
-
+        
+    # # Only for visualization purposes. Uncomment the lines below to visualize the filtered table image showing text/digits without the noise such as dots.
     # plt.imshow(filtered_image, cmap="gray")
     # plt.title("Second Filtered Image - Only Dots Near Text - No Lines")
     # plt.show()
     
 
-    # Step 2: Use **horizontal dilation** to merge digits within numbers, but prevent full merging
-    kernel_to_remove_gaps = np.ones((1, 6), np.uint8)  # Horizontal merging kernel
+
+    ## STEP 4: DETECT THE ALL CONNECTED TEXT/MULTI-DIGITS IN ONE CELL (text/digit locations)
+    # Blobs refer to white connected components (regions) on the **inverted** image.
+    # These components likely represent text or digits within a cell — especially when characters are close together.
+    # To improve detection of full numbers or words (e.g., merging '1' and '9' in '19' into a single blob), we use **dilation**.
+
+    # Dilation expands white regions in the image. In this context, it helps connect nearby digits/letters horizontally 
+    # (e.g., connecting the characters in "27" that may have a small gap between them).
+    # The kernel shape (1, 6) means we only merge components that are close **horizontally**, not vertically.
+    kernel_to_remove_gaps = np.ones((1, 6), np.uint8)  # Horizontal merging kernel. Variables are (Height, Width) in pixels
     image_with_number_blobs = cv2.dilate(filtered_image, kernel_to_remove_gaps, iterations=5)  # Controlled dilation
 
-    # Step 3: Apply **morphological closing** to ensure numbers remain compact blobs
-    rect_kernel = np.ones((1, 3), np.uint8)   # was 3 initially. in prev step was 1
+    # Next, we apply **morphological closing** to clean up the dilated blobs.
+    # Morphological closing = Dilation followed by Erosion. It connects small gaps and fills tiny holes within each blob,
+    # making digits appear more solid and compact — especially useful for unifying thin or fragmented characters.
+    rect_kernel = np.ones((1, 6), np.uint8)   
     image_with_word_blobs = cv2.morphologyEx(image_with_number_blobs, cv2.MORPH_CLOSE, rect_kernel, iterations=1)
 
-
-    # plt.imshow(image_with_word_blobs, cmap = 'gray') # figure showing detected table image with horizintal and vertical lines removed.
-    # plt.title('horizontal dilation')
-    # plt.show() 
-
-
-    # Define a horizontal erosion kernel
-    horizontal_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 6))  # (height, width) to break horizontal merges. had it at 1,5 initially 
-    # Apply erosion to break the connection between digits
-    image_with_word_blobs = cv2.erode(image_with_word_blobs, horizontal_kernel, iterations=2)  # Increase iterations if still connected. Had 2 iteratons initially
-    # plt.imshow(image_with_word_blobs, cmap = 'gray') # figure showing detected table image with horizintal and vertical lines removed.
-    # plt.title('applied horizontal_kernel')
-    # plt.show() 
-
-    # ** delete small horizontal lines.
-    # Create a blank mask for horizontal lines
-    horizontal_line_mask = np.zeros_like(image_with_word_blobs)
-
-    # Draw **thin** horizontal lines at detected y-positions (but not subtracting yet)
-    for y, x_start, x_end in horizontal_lines:
-        cv2.line(horizontal_line_mask, (x_start - 15, y), (x_end + 15, y), 255, thickness=3)  # Initially very thin
-
-    # # # Show the initial thin line mask
-    # # plt.imshow(horizontal_line_mask, cmap="gray")
-    # # plt.title("Initial Thin Line Mask")
-    # # plt.show()
-
-    # **Step 3: Subtract the dilated lines from the filtered image**
-    image_with_word_blobs = cv2.subtract(image_with_word_blobs, horizontal_line_mask)
-
-    # # Show the final image after subtraction
-    # plt.imshow(image_with_word_blobs, cmap="gray")
-    # plt.title("Final Image After Subtracting Horizontal Lines")
-    # plt.show()
-
-
-
-    ####*********what if i did this step above now with (1,3) dilation. In otherwords in both direction
-    image_with_word_blobs = cv2.dilate(image_with_word_blobs, np.ones((1, 6), np.uint8), iterations=2) # (height, width) # initialy (1,3) and 1 iteration
+    # # Only for visualization purposes. Uncomment the lines below to visualize the table image showing blobs (text/digit locations)
     # plt.imshow(image_with_word_blobs, cmap = 'gray') 
-    # plt.title('final horizontal dilation to increase width of blobs')
+    # plt.title('horizontal dilation and morpholodical closing')
     # plt.show() 
 
-    # **Step 2: Apply Controlled Erosion to Fix Over-Merging**
-    erosion_kernel = np.ones((1, 3), np.uint8)  # Smaller horizontal erosion kernel
-    image_with_word_blobs = cv2.erode(image_with_word_blobs, erosion_kernel, iterations=1)  # Controlled shrinking
+    # After this, we subtract the detected vertical and horizontal lines from the filtered image.
+    # This is to prevent over-merging of digits/text across different columns or rows
+    image_with_word_blobs = cv2.subtract(image_with_word_blobs, combined_image_dilated)
 
-    # plt.imshow(image_with_word_blobs, cmap="gray")
-    # plt.title("After Horizontal Erosion (Fix Over-Merging)")
-    # plt.show()
+    # # Only for visualization purposes. Uncomment the lines below to visualize the table image showing blobs (text/digit locations), after deleting the original horizontal and vertical lines in the table to avoid over-merging of blobs incorrectly across columns and rows
+    # plt.imshow(image_with_word_blobs, cmap = 'gray') # figure showing detected table image with horizintal and vertical lines removed.
+    # plt.title('subtraction of detected vertical and horizontal lines of table')
+    # plt.show() 
 
-    # **Step 2: Find Wide Blobs That Need Stronger Erosion**
+    ## RECHECK: AVOIDING WRONGLY CONNECTED BLOBS/CELLS ACROSS THE TABLE
+    ## Identifying wrongfully joined blobs/cells in the same column and adjascent rows
     num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(image_with_word_blobs, connectivity=8)
 
     for i in range(1, num_labels):  # Ignore background (label 0)
         x, y, w, h = stats[i, cv2.CC_STAT_LEFT], stats[i, cv2.CC_STAT_TOP], stats[i, cv2.CC_STAT_WIDTH], stats[i, cv2.CC_STAT_HEIGHT]
         
-        if w > 200:  # **If the blob is too wide, apply stronger erosion**
-            erosion_kernel = np.ones((3, 10), np.uint8)  # Slightly stronger erosion for wide blobs
+        # Here we check the heights of all the detected blobs individually
+        # If the blob is too tall, we slice it to the expected maximum dimensions, here the maximum cell height, to separate wrongfully joined blobs in the same column and adjascent rows
+        if h > max_cell_height_threshold: 
+            roi = image_with_word_blobs[y:y+h, x:x+w].copy()
+            sliced_roi = roi.copy()
+
+            # Determine how many rows this blob spans
+            row_height = max_cell_height_threshold  # Approximate average row height in the sheets
+            num_slices = h // row_height
+
+            # Insert horizontal black lines to slice between rows to slice the blobs
+            for s in range(1, num_slices + 1):
+                y_line = s * row_height
+                if y_line < h:
+                    cv2.line(sliced_roi, (0, y_line), (w, y_line), 0, thickness=3)
+                    # print('Slided one blob horizontally') # Just a check to know how many wrongfully joined blobs in the same column and adjascent rows were sliced. Uncomment this incase you want to print the text everytime a blob is sliced.
+
+            # Replace original ROI with sliced version
+            image_with_word_blobs[y:y+h, x:x+w] = sliced_roi
+
+    # # For visualization purposes; to ensure that all previously over-merged cells in the same column have been separated by slicing
+    # plt.imshow(image_with_word_blobs, cmap="gray")
+    # plt.title("Fixing Over-Merging across rows")
+    # plt.show()
+    
+    # Identifying wrongfully joined blobs/cells in the same row and adjascent columns
+    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(image_with_word_blobs, connectivity=8)
+
+    for i in range(1, num_labels):  # Ignore background (label 0)
+        x, y, w, h = stats[i, cv2.CC_STAT_LEFT], stats[i, cv2.CC_STAT_TOP], stats[i, cv2.CC_STAT_WIDTH], stats[i, cv2.CC_STAT_HEIGHT]
+
+        # Here we check the widths of all the detected blobs individually
+        # If the blob is too wide, apply stronger erosion to separate the wrongfully joined blobs in the same row and adjascent columns 
+        if w > max_cell_width_threshold:  
+            erosion_kernel = np.ones((3, 1), np.uint8)  # where (Height, Width).  Slightly stronger erosion for wide blobs
             roi = image_with_word_blobs[y:y+h, x:x+w]
             eroded_roi = cv2.erode(roi, erosion_kernel, iterations=3)  # More iterations for wider blobs'
             
@@ -758,83 +776,72 @@ def table_and_cell_detection(image_in_grayscale, binarized_image, original_image
             recovered_roi = cv2.dilate(eroded_roi, dilation_kernel, iterations=3)  # Restore vertical thickness
             
             image_with_word_blobs[y:y+h, x:x+w] = recovered_roi  # Replace only this region
-        
-        if h > 50: # ** If the blob is too tall, apply stronger erosion along the horizontal dimension**
-            # erosion_kernel_vert = np.ones((min(h // 15, 12), 6), np.uint8)  # Adaptive vertical erosion # Initially had this: np.ones((min(h // 20, 12), 3), np.uint8)
-            erosion_kernel_vert = np.ones((1, 13), np.uint8)  # Slightly stronger erosion for wide blobs # Imitially had (10,3), BUT (1,10) improved it
-            roi = image_with_word_blobs[y:y+h, x:x+w]
-            eroded_roi = cv2.erode(roi, erosion_kernel_vert, iterations=3)  
-            
-            # **Restore horizontal thickness**
-            dilation_kernel_vert = np.ones((1, 6), np.uint8)  # initially had (1,6)
-            recovered_roi = cv2.dilate(eroded_roi, dilation_kernel_vert, iterations=3)  
 
-            image_with_word_blobs[y:y+h, x:x+w] = recovered_roi 
+            # print('eroded one blob') # Just a check to know how many wrongfully joined blobs in the same row and adjascent columns were sliced. Uncomment this incase you want to print the text everytime a blob is sliced.
 
+    # Following up on the previous identification of wrongfully joined blobs/cells in the same row and adjascent columns. Here we find very wide blobs/cells where the erosion (above) wasn't strong enough to separate them, then we slice themm using the maximum cell width threshold**
+    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(image_with_word_blobs, connectivity=8)
+
+    for i in range(1, num_labels):  # Ignore background (label 0)
+        x, y, w, h = stats[i, cv2.CC_STAT_LEFT], stats[i, cv2.CC_STAT_TOP], stats[i, cv2.CC_STAT_WIDTH], stats[i, cv2.CC_STAT_HEIGHT]
+
+        if w > max_cell_width_threshold:
+            roi = image_with_word_blobs[y:y+h, x:x+w].copy()
+            sliced_roi = roi.copy()
+
+            # Determine how many columns this blob spans
+            col_width = max_cell_width_threshold  # Approximate average column width in your dataset
+            num_slices = w // col_width
+
+            # Insert vertical black lines to slice between columns
+            for s in range(1, num_slices + 1):
+                x_line = s * col_width
+                if x_line < w:
+                    cv2.line(sliced_roi, (x_line, 0), (x_line, h), 0, thickness=3)
+                    # print('Sliced one blob vertically')  # For debugging
+
+            # Replace original ROI with sliced version
+            image_with_word_blobs[y:y+h, x:x+w] = sliced_roi
+            # print('sliced one blob that couldnt be eroded easily') # Just a check to know how many wrongfully joined blobs in the same row and adjascent columns were sliced. Uncomment this incase you want to print the text everytime a blob is sliced.
     
+    # # For visualization purposes; to ensure that all previously over-merged cells in same row have been separated by erosion and slicing
     # plt.imshow(image_with_word_blobs, cmap="gray")
-    # plt.title("After Adaptive Erosion (Fixing Over-Merging)")
+    # plt.title("Fixing Over-Merging across columns")
     # plt.show()
 
-    
-    
+    # RECHECK: Remove the table vertical and horizontal lines from the table. This is also an additional step to avoid wrongly merged blobs/cells
+    # # Only for visualization purposes. Uncomment the lines below to visualize the table image showing blobs (text/digit locations), after deleting the original horizontal and vertical lines in the table to avoid over-merging of blobs incorrectly across columns and rows
+    image_with_word_blobs = cv2.subtract(image_with_word_blobs, combined_image_dilated)
+    # plt.imshow(image_with_word_blobs, cmap="gray")
+    # plt.title("image_removing_previous_lines_areas_to_Avoid_merging_of_blobs_horizontally")
+    # plt.show()
 
-    ## Using contours in order to detect text in the table after removing the vertical and horizontal lines
-    # Assuming 'table' is your input image in BGR format
-    # result = cv2.findContours(image_without_lines_2, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+           
+    ## STEP 5: ARRANGING THE DETECTED BLOBS, HERE CELLS, INTO ROWS AND COLUMNS READY FOR THE NEXT TRANSCRIPTION MODULE
+    ## Here we draw contours around the remaining detected blobs in order to detect text in the table
     result = cv2.findContours(image_with_word_blobs, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     contours = result[0]
-    # Original image of table in binarizesd format
+    # Original image of table in binarized format
     image_with_all_bounding_boxes = cv2.imread(save_path)
-    table_binarized = image_with_all_bounding_boxes.copy()
-    
 
-    # # Plots only for visualization purposes. Uncomment the lines below to show the different steps
-    
-    # plt.imshow(image_without_lines, cmap = 'gray') # figure showing detected table image with horizintal and vertical lines removed.
-    # plt.show() 
-
-    # plt.imshow(image_without_lines_noise_removed, cmap = 'gray') # figure showing detected table image with horizintal and vertical lines removed.
-    # plt.show() 
-
-    # plt.imshow(image_with_word_blobs, cmap = 'gray') # figure showing text blobs on the detected table image with horizintal and vertical lines removed.
-    # plt.show()
-
-    # plt.imshow(image_without_lines_2, cmap = 'gray') # figure showing text blobs on the detected table image with horizintal and vertical lines removed.
-    # plt.show()
-
-    # plt.imshow(detected_table_cells[4], cmap = 'gray') # unclipped detected table
-    # plt.show()
-
-    # plt.imshow(detected_table_cells[1]) # clipped detected table
-    # plt.show()
-
-    ## FOR VISUALIZATION PURPOSES. Uncomment the lines below to plot the identified cells (contours/bounding boxes)
     # Make a copy of the original image to overlay contours without modifying the original
     table_img_bin_overlayed_with_contours = table_img_bin.copy()
     # Convert the grayscale image to RGB to support colored bounding boxes
     table_img_bin_overlayed_with_contours = cv2.cvtColor(table_img_bin_overlayed_with_contours, cv2.COLOR_GRAY2RGB)
 
-
-    # Filter out smaller or larger bounding boxes from all the detected text contours. This is helpful to avoid overly large cells or small cells with no text. Remember to adjust these values based on the table structure in your specific case 
+    # Filter out smaller or larger bounding boxes from all the detected text contours. This is helpful to avoid overly large cells or small cells with no text. Remember to adjust these values for (min_cell_width_threshold, min_cell_height_threshold, max_cell_width_threshold, max_cell_height_threshold) based on the table structure in your specific case in the configutation.ini file.
     filtered_contours = filter_contours(contours, min_cell_width_threshold, min_cell_height_threshold, max_cell_width_threshold, max_cell_height_threshold)
 
     # Iterate over each contour in the new_contours list and draw bounding boxes
     for contour in filtered_contours:
         if contour is not None and len(contour) > 0:
-            x, y, w, h = cv2.boundingRect(contour)
+            x, y, w, h = cv2.boundingRect(contour) # Dimensions of the rectangular countours surrounding the blobs. We term these as bounding boxes. 
 
             # # Adjust bounding box dimensions
-            # increase_factor_width = 0.05
-            # increase_factor_height = 0.25
-            # x += int(w * increase_factor_width) # Increase width
-            # y -= int(h * increase_factor_height) # Increase height
-            # w -= int(w * increase_factor_width) # Decrease width a little to avoid vertical lines that may be transcribed as the number 1 yet they aren't a number
-            # h += int(h * increase_factor_height * 2) # Increase height
-
-            # Define increase factors for bounding box modification
-            increase_factor_width = 0.07  # Increase width by 20%
-            increase_factor_height = 0.25  # Increase height by 25%
+            # Define increase factors for bounding box modification. We do this to give more room to the detected cell and avoid cutting the text in the cells.
+            increase_factor_width = 0.07  # Increase width by 7%
+            increase_factor_height = 0.20  # Increase height by 20%
 
             # Expand width while keeping it centered
             new_w = int(w * (1 + increase_factor_width))  # Increase width
@@ -853,7 +860,7 @@ def table_and_cell_detection(image_in_grayscale, binarized_image, original_image
             # Draw the bounding box directly on the overlay image
             cv2.rectangle(table_img_bin_overlayed_with_contours, (x, y), (x + w, y + h), (0, 0, 255), 3)
 
-    # # Display the image with bounding boxes using matplotlib
+    # # Only for visualization purposes. Display the image with bounding boxes using matplotlib
     # plt.imshow(table_img_bin_overlayed_with_contours)
     # plt.axis('off')  # Hide axis
     # plt.show()
@@ -861,74 +868,9 @@ def table_and_cell_detection(image_in_grayscale, binarized_image, original_image
     # Sort contours by y-coordinate
     contours_sorted = sorted(filtered_contours, key=lambda c: cv2.boundingRect(c)[1])
 
-    # Get the dimensions of the loaded image. Here, particulary the image/table width is very important for the column placement of cells/bounding boxes
-    image_height, image_width, image_channels = image_with_all_bounding_boxes.shape
 
 
-    # # Adding missing bounding boxes. Here, we define the minimum height space and minimum width space between the bounding boxes in a column and row respectively, in case of a missing bounding box.
-    # # Add missing ROIs to the contours
-    # new_contours = add_missing_rois(contours_sorted, space_height_threshold, space_width_threshold, max_cell_height_per_box, no_of_rows, no_of_columns, image_width)
-    
-
-    # ## FOR VISUALIZATION PURPOSES. Uncomment the lines below to plot the identified cells (contours/bounding boxes)
-    # # Make a copy of the original image to overlay contours without modifying the original
-    # table_img_bin_overlayed_with_contours = table_img_bin.copy()
-    # # Convert the grayscale image to RGB to support colored bounding boxes
-    # table_img_bin_overlayed_with_contours = cv2.cvtColor(table_img_bin_overlayed_with_contours, cv2.COLOR_GRAY2RGB)
-
-
-    # # Iterate over each contour in the new_contours list and draw bounding boxes
-    # for contour in new_contours:
-    #     if contour is not None and len(contour) > 0:
-    #         x, y, w, h = cv2.boundingRect(contour)
-
-    #         # Adjust bounding box dimensions
-    #         increase_factor_width = 0.2
-    #         increase_factor_height = 0.3
-    #         # x += int(w * increase_factor_width) # Increase width
-    #         # y -= int(h * increase_factor_height) # Increase height
-    #         # w -= int(w * increase_factor_width) # Decrease width a little to avoid vertical lines that may be transcribed as the number 1 yet they aren't a number
-    #         # h += int(h * increase_factor_height * 2) # Increase height
-
-    #         # Expand width
-    #         new_w = int(w * (1 + increase_factor_width))  # Increase width
-    #         x = x - (new_w - w) // 2  # Center the new width
-
-    #         # Expand height
-    #         new_h = int(h * (1 + increase_factor_height * 2))  # Increase height on both sides
-    #         y = y - (new_h - h) // 2  # Center the new height
-            
-    #         # # Draw the bounding box directly on the overlay image
-    #         # cv2.rectangle(table_img_bin_overlayed_with_contours, (x, y), (x + w, y + h), (0, 255, 0), 4)
-
-    #         # Draw the updated bounding box
-    #         cv2.rectangle(table_img_bin_overlayed_with_contours, (x, y), (x + new_w, y + new_h), (0, 255, 0), 2)
-
-    # # Remove contours that are None or empty
-    # new_contours = [contour for contour in new_contours if contour is not None and len(contour) > 0]
-
-    # # Display the image with bounding boxes using matplotlib
-    # plt.imshow(table_img_bin_overlayed_with_contours)
-    # plt.axis('off')  # Hide axis
-    # plt.show()
-
-
-    # # Save the binary image for use later in detecting text
-    # save_dir = os.path.join(transient_transcription_output_dir, station)
-    # os.makedirs(save_dir, exist_ok=True)  # Ensure the directory exists
-    # save_path_without_vertical_lines = os.path.join(save_dir, 'table_binarized_without_vertical_lines.jpg')
-    # cv2.imwrite(save_path_without_vertical_lines, table_img_bin)
-
-    # # Original image of table in binarizesd format without the dots
-    # table_binarized_without_vertical_lines_file = cv2.imread(save_path_without_vertical_lines)
-    # table_binarized_without_vertical_lines = table_binarized_without_vertical_lines_file.copy()
-
-    # plt.imshow(table_binarized_without_vertical_lines)
-    # plt.title("Filtered Image - Text Only - Without vertical lines")
-    # plt.show()
-
-
-
+    ## STEP 6: REMOVE ANY NOISE (SUCH AS DOTS) FROM THE BINARIZED IMAGE OF THE TABLE TO PREPARE IT FOR THE NEXT TRANSCRIPTION MODULE
     # Apply the same dot removal to the **binarized image**
     table_img_bin[dots_to_remove == 255] = 255  # Set dots to white
 
@@ -936,30 +878,25 @@ def table_and_cell_detection(image_in_grayscale, binarized_image, original_image
     table_img_bin[table_img_bin > 127] = 255  # Set everything above 127 to white
     table_img_bin[table_img_bin <= 127] = 0   # Set everything below 127 to black
 
-
     # Save the binary image for use later in detecting text
     save_dir = os.path.join(transient_transcription_output_dir, station)
     os.makedirs(save_dir, exist_ok=True)  # Ensure the directory exists
     save_path_without_dots = os.path.join(save_dir, 'table_binarized_without_dots.jpg')
     cv2.imwrite(save_path_without_dots, table_img_bin)
 
-    # Original image of table in binarizesd format without the dots
-    table_binarized_without_dots_file = cv2.imread(save_path_without_dots)
-    table_binarized_without_dots = table_binarized_without_dots_file.copy()
-    
-    
-
+    # # Only for visualization purposes. show the binarized image of the table without any noise such as dots.
+    # # Original image of table in binarized format without the dots
+    # table_binarized_without_dots_file = cv2.imread(save_path_without_dots)
+    # table_binarized_without_dots = table_binarized_without_dots_file.copy()
     # plt.imshow(table_binarized_without_dots)
     # plt.title("Filtered Image - Text Only - Without dots")
     # plt.show()
 
+    table_for_overlaying_with_contours = table_img_bin.copy()
+    # Convert the grayscale image to RGB to support colored bounding boxes
+    table_for_overlaying_with_contours = cv2.cvtColor(table_for_overlaying_with_contours, cv2.COLOR_GRAY2RGB)
+    detected_table_cells = [contours_sorted, image_with_all_bounding_boxes, table_for_overlaying_with_contours, table_original_image, full_detected_table_with_labels]
 
-
-    # detected_table_cells = [new_contours, image_with_all_bounding_boxes, table_binarized_without_dots, table_original_image, full_detected_table_with_labels]
-
-    detected_table_cells = [contours_sorted, image_with_all_bounding_boxes, table_binarized_without_dots, table_original_image, full_detected_table_with_labels]
-
-    
 
     return detected_table_cells
 
