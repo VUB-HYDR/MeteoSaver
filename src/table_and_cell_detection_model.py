@@ -832,51 +832,75 @@ def table_and_cell_detection(image_in_grayscale, binarized_image, original_image
     horizontal_lines = []
 
     # Step 2: Identify large text components (potential numbers)
-    text_components = []
-    dots_to_remove = np.zeros_like(labels)  # Mask for dots to be removed
-
-    for i in range(1, num_labels):
-        x, y, w, h, area = stats[i, cv2.CC_STAT_LEFT], stats[i, cv2.CC_STAT_TOP], stats[i, cv2.CC_STAT_WIDTH], stats[i, cv2.CC_STAT_HEIGHT], stats[i, cv2.CC_STAT_AREA]
-
-        aspect_ratio = w / h  # Compute aspect ratio
-
-        # Keep only real text (numbers) as reference components
-        if area > 100 and aspect_ratio < ASPECT_RATIO_THRESHOLD and h > HEIGHT_THRESHOLD:   # was 100 before this check, then i tried 50
-            text_components.append((x, y, w, h))
-            filtered_image[labels == i] = 255  # Keep text
+    # Pre-compute aspect ratios for all components
+    if num_labels > 1:
+        widths = stats[1:, cv2.CC_STAT_WIDTH]
+        heights = stats[1:, cv2.CC_STAT_HEIGHT]
+        areas = stats[1:, cv2.CC_STAT_AREA]
+        aspect_ratios = widths / heights
         
-        else:
-            dots_to_remove[labels == i] = 255  # Mark dots for removal
+        text_components = []
+        text_labels_to_keep = []
+        dot_labels_to_remove = []
+        
+        # Single loop with pre-computed values
+        for i in range(num_labels - 1):  # Exclude background
+            label_id = i + 1
+            area = areas[i]
+            aspect_ratio = aspect_ratios[i]
+            height = heights[i]
+            
+            # Keep only real text (numbers) as reference components
+            if area > 100 and aspect_ratio < ASPECT_RATIO_THRESHOLD and height > HEIGHT_THRESHOLD:
+                x, y, w, h = stats[label_id, cv2.CC_STAT_LEFT:cv2.CC_STAT_LEFT+4]
+                text_components.append((x, y, w, h))
+                text_labels_to_keep.append(label_id)
+            else:
+                dot_labels_to_remove.append(label_id)
+        
+        # Batch update images
+        if text_labels_to_keep:
+            text_mask = np.isin(labels, text_labels_to_keep)
+            filtered_image[text_mask] = 255
+        
+        dots_to_remove = np.zeros_like(labels)
+        if dot_labels_to_remove:
+            dot_mask = np.isin(labels, dot_labels_to_remove)
+            dots_to_remove[dot_mask] = 255
+    else:
+        text_components = []
+        dots_to_remove = np.zeros_like(labels)
 
     # plt.imshow(filtered_image, cmap="gray")
     # plt.title("First Filtered Image - No Dots - No Lines")
     # plt.show()
 
     # Step 3: Process small dots and keep only those near text
-    for i in range(1, num_labels):
-        x, y, w, h, area = stats[i, cv2.CC_STAT_LEFT], stats[i, cv2.CC_STAT_TOP], stats[i, cv2.CC_STAT_WIDTH], stats[i, cv2.CC_STAT_HEIGHT], stats[i, cv2.CC_STAT_AREA]
-
-        # Skip already kept text components
-        if area > 100 and aspect_ratio < ASPECT_RATIO_THRESHOLD and h > HEIGHT_THRESHOLD:
-            continue  # Skip large text components
-
-        # Check if this small dot is close to any number
-        keep_dot = False
-        for tx, ty, tw, th in text_components:
-            # Compute distance from dot center to the number bounding box
+    # Pre-convert text_components to numpy arrays for faster operations
+    if text_components:
+        text_array = np.array(text_components)  # Shape: (N, 4) for N text components
+        
+        for i in range(1, num_labels):
+            x, y, w, h, area = stats[i, cv2.CC_STAT_LEFT], stats[i, cv2.CC_STAT_TOP], stats[i, cv2.CC_STAT_WIDTH], stats[i, cv2.CC_STAT_HEIGHT], stats[i, cv2.CC_STAT_AREA]
+            aspect_ratio = w / h
+            # Skip already kept text components
+            if area > 100 and aspect_ratio < ASPECT_RATIO_THRESHOLD and h > HEIGHT_THRESHOLD:
+                continue
+            
+            # Vectorized proximity check
             dot_center_x, dot_center_y = x + w // 2, y + h // 2
-            if (tx - PROXIMITY_THRESHOLD <= dot_center_x <= tx + tw + PROXIMITY_THRESHOLD and
-                ty - PROXIMITY_THRESHOLD <= dot_center_y <= ty + th + PROXIMITY_THRESHOLD):
-                keep_dot = True
-                # Store the y-position and x-limits of dots near text
-                horizontal_lines.append((dot_center_y, x, x + w))  # (y-position, x_start, x_end)
-                break  # No need to check other numbers
-
-        if keep_dot:
-            filtered_image[labels == i] = 255  # Keep dots near numbers
-        # else:
-        #     dots_to_remove[labels == i] = 255  # Mark dots for removal
-
+            
+            # Check proximity to all text components at once
+            in_x_range = ((text_array[:, 0] - PROXIMITY_THRESHOLD <= dot_center_x) & 
+                        (dot_center_x <= text_array[:, 0] + text_array[:, 2] + PROXIMITY_THRESHOLD))
+            in_y_range = ((text_array[:, 1] - PROXIMITY_THRESHOLD <= dot_center_y) & 
+                        (dot_center_y <= text_array[:, 1] + text_array[:, 3] + PROXIMITY_THRESHOLD))
+            
+            keep_dot = np.any(in_x_range & in_y_range)
+            
+            if keep_dot:
+                filtered_image[labels == i] = 255
+                horizontal_lines.append((dot_center_y, x, x + w))
     # plt.imshow(filtered_image, cmap="gray")
     # plt.title("Second Filtered Image - Only Dots Near Text - No Lines")
     # plt.show()
