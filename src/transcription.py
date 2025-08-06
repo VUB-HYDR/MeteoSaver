@@ -938,8 +938,7 @@ def add_missing_boxes(sorted_rows, max_cell_width_threshold=120, max_cell_height
     updated_rows = []
 
     for row in sorted_rows:
-        if row == [None]:  # Skip padding rows
-            updated_rows.append(row)
+        if any(cell is None for cell in row):
             continue
 
         bounding_boxes = [cv2.boundingRect(c) for c in row]
