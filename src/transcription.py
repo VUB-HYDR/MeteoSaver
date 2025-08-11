@@ -893,7 +893,7 @@ def transcription(detected_table_cells, ocr_model, tesseract_path, transient_tra
                     cv2.imwrite(save_path_detected_text, ROI)
                     if ocr_model == 'Tesseract-OCR':
                     # Using Tesseract-OCR
-                        ocr_result = pytesseract.image_to_string(save_path_detected_text, lang='cobecore-V6', config='--oem 1 --psm 7 -c tessedit_char_whitelist=0123456789') # Just added -c tessedit_char_whitelist=0123456789 to really limit the text type/values detected
+                        ocr_result = pytesseract.image_to_string(save_path_detected_text, lang='cobecore-V7_702', config='--oem 1 --psm 7 -c tessedit_char_whitelist=0123456789') # Just added -c tessedit_char_whitelist=0123456789 to really limit the text type/values detected
 
                         # Here's a brief explanation of some Page Segmentation Modes (PSMs) available in Tesseract:
                         # 0: Orientation and script detection (OSD) only.
@@ -960,7 +960,7 @@ def transcription(detected_table_cells, ocr_model, tesseract_path, transient_tra
                         #     cell_ref = f'{column_letter}{row_index}'
                         
                         # Place the OCR/HTR recognized text in its respective Ms Excel cell 
-                        ws[cell_ref].value = ocr_result   
+                        ws[cell_ref].value = ocr_result.strip()  # Remove leading/trailing whitespace   
 
                         # # Restore the row index to the initial value
                         # row_index = initial_row_index

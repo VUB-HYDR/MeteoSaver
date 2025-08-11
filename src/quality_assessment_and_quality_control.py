@@ -873,6 +873,9 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
     ## Additional checks for Dry bulb temperature (T), Wet bulb temperature (T'a), Actual Vapour pressure (e), Relative Humidity (U), and delta e 
     # Iterate over each row in the worksheet after header rows
     for row in new_worksheet.iter_rows(min_row=header_rows+1, max_row=new_worksheet.max_row):
+        if row[0].row in excluded_rows:
+            continue 
+        
         for i in range(0, len(dry_and_wet_bulb_temperature_columns), 2):
             dry_col = dry_and_wet_bulb_temperature_columns[i]
             wet_col = dry_and_wet_bulb_temperature_columns[i+1]
