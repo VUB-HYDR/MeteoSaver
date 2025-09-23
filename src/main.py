@@ -45,9 +45,6 @@ result_maps_dir = config['Directories']['result_maps_dir'] # Directory for resul
 # Get all folder names (Station Numbers) within full_datadir
 all_stations = [folder for folder in os.listdir(full_datadir) if os.path.isdir(os.path.join(full_datadir, folder))]
 
-# # Trends calculated for all stations
-# all_station_trends = []
-
 # Function to process each station's data
 def process_station(station):
     datadir = os.path.join(full_datadir, station)
@@ -168,8 +165,6 @@ def process_station(station):
                     max_temperature_threshold = float(config['QAQC']['max_temperature_threshold']),
                     min_temperature_threshold = float(config['QAQC']['min_temperature_threshold']))
 
-    if formatted_data:
-        all_station_trends.append(formatted_data) # trends in the formatted data
 
     # Extra module: Validation
     validation_dir_station = os.path.join(validation_dir, station)
@@ -198,7 +193,7 @@ def process_station(station):
 
     
 if __name__ == '__main__':
-    # Trends calculated for all stations
+    # Formatted transcribed and qc checked data for all stations. Can be used to calculate for trends
     all_station_trends = []
 
     if run_mode == 'hpc':
@@ -213,69 +208,5 @@ if __name__ == '__main__':
             result = process_station(station)
             if result:
                 all_station_trends.append(result)
-
-    # # After all the station are processed
-    # # Separate trend metadata (for mapping) from full station results
-    # trend_records = []
-    # all_cleaned_data = []
-    # total_green_cells = {}
-
-
-    # for station_result in all_station_trends:
-    #     if not station_result:
-    #         continue
-    #     # Only keep the trend mapping info
-    #     trend_record = {k: v for k, v in station_result.items() if k in [
-    #         "station_id", "station_name", "lat", "lon",
-    #         "trend_max_temperature", "trend_min_temperature", "trend_avg_temperature", "trend_TXx", "trend_TNn"
-    #     ]}
-    #     trend_records.append(trend_record)
-
-    #     # Keep the full cleaned DataFrame for bootstrapping / future regional analysis
-    #     if "data" in station_result:
-    #         all_cleaned_data.append(station_result["data"])
-    #     if "green_cell_count" in station_result:
-    #         for var, count in station_result["green_cell_count"].items():
-    #             if var not in total_green_cells:
-    #                 total_green_cells[var] = 0
-    #             total_green_cells[var] += count
-        
-    # # Save total green cell count to a text file
-    # with open(os.path.join(result_maps_dir, "qa_qc_green_cell_summary.txt"), "w") as f:
-    #     f.write("Total QA/QC-validated (green-highlighted) cell counts across all stations:\n")
-    #     for var, count in total_green_cells.items():
-    #         f.write(f"{var}: {count}\n")
-    #     total_count = sum(total_green_cells.values())
-    #     f.write(f"\nTotal across all variables: {total_count}\n")
-
-
-    # if all_cleaned_data:
-    #     regional_df = pd.concat(all_cleaned_data, ignore_index=True)
-    #     #plot_full_period_trend_distribution_three_panel(regional_df, output_folder_path=result_maps_dir, station="Regional", station_name="All Stations Combined")
-    #     plot_temperature_distribution_shift_by_decade(regional_df, output_folder_path=result_maps_dir, station="Regional", station_name="All Stations Combined")
-    #     plot_temperature_extremes_three_panel(regional_df, output_folder_path=result_maps_dir, station="Regional", station_name="All Stations Combined")
-    # else:
-    #     print("[INFO] No cleaned station data available for regional trend analysis.")
-
-    # # Function to map the trends in all the stations across the region and perform spatial interpolation
-    # # trend_df = pd.DataFrame(all_station_trends)
-    # # print(trend_df)
-    # # plot_trend_interpolation_map(trend_df, region_shapefile_path, result_maps_dir)
-
-    # if trend_records:
-    #     # Build DataFrame for spatial interpolation
-    #     trend_df = pd.DataFrame(trend_records)
-    #     print(trend_df)
-    #     trend_df.to_csv(os.path.join(result_maps_dir, "station_temperature_trends.txt"), sep='\t', index=False)
-
-
-    #     # Box plot showing the distribution of trends in the temperature considering all stations
-    #     plot_trend_boxplot_by_station(trend_df, result_maps_dir)
-
-    #     # Plot spatial trend map
-    #     plot_trend_interpolation_map(trend_df, region_shapefile_path, result_maps_dir)
-    # else: 
-    #     print("[INFO] No trends station data available for spatial interplolation and distribution of trends")
-
 
 

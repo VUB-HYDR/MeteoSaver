@@ -21,6 +21,7 @@ from scipy.cluster.hierarchy import fcluster, linkage
 from sklearn.cluster import DBSCAN
 from datetime import datetime
 from calendar import monthrange
+import zipfile
 
 
 def get_max_rows_from_filename(filename):
@@ -573,6 +574,9 @@ def add_missing_boxes(sorted_rows, max_cell_width_threshold=130, max_cell_height
             updated_rows.append(row)
             continue
 
+        # if any(cell is None for cell in row):
+        #     continue
+
         bounding_boxes = [cv2.boundingRect(c) for c in row]
         bounding_boxes.sort(key=lambda b: b[0])
 
@@ -609,13 +613,6 @@ def add_missing_boxes(sorted_rows, max_cell_width_threshold=130, max_cell_height
             num_missing_boxes = min(int(gap // max_cell_width_threshold), max_columns - len(new_boxes))
 
             total_box_width = num_missing_boxes * max_cell_width_threshold
-            # start_x = gap_start_x + (gap - total_box_width) / 2
-
-            # new_boxes_in_gap = []
-            # for j in range(num_missing_boxes):
-            #     new_x = start_x + j * max_cell_width_threshold
-            #     new_box = (int(new_x), y1, max_cell_width_threshold, max_cell_height_threshold)
-            #     new_boxes_in_gap.append(new_box)
             
             # Dynamically compute width so that all boxes fit perfectly into the gap
             dynamic_cell_width = gap / (num_missing_boxes + 1)
@@ -730,6 +727,11 @@ def transcription(detected_table_cells, ocr_model, tesseract_path, transient_tra
     
     results = []
 
+    # Create ZIP archive for saving sorted images
+    sorted_images_zip_path = os.path.join(transient_transcription_output_dir, station, "sorted_detected_cells_images.zip")
+    sorted_images_zip = zipfile.ZipFile(sorted_images_zip_path, 'a', compression=zipfile.ZIP_DEFLATED)
+    sorted_image_names_written = set()
+
     # Here we use two methods to arrange the boundung boxes (as a double check): (1) Using the middle coordinates of the bounding boxes , and (2) Using the top coordinated of the boudning boxes.
     organize_methods = {  
         'Midpoint': organize_contours_midpoint,
@@ -786,24 +788,40 @@ def transcription(detected_table_cells, ocr_model, tesseract_path, transient_tra
         # Draw markers on the image after sorting
         draw_row_markers_and_boxes(image_after_sorting, sorted_rows, colors)  # Red color for sorted order
 
+        # Create filename for after-sorting image
+        zip_filename = f"after_sorting_{method_name}_{month_filename}.png"
+
+        # Avoid duplicate names. and save the sorted image in the zipped file
+        if zip_filename not in sorted_image_names_written:
+            _, encoded = cv2.imencode('.png', image_after_sorting)
+            sorted_images_zip.writestr(zip_filename, encoded.tobytes())
+            sorted_image_names_written.add(zip_filename)
+
         # Ensure save directory exists
         save_dir = os.path.join(transient_transcription_output_dir, station)
         os.makedirs(save_dir, exist_ok=True)
 
-        # Define save paths
-        save_path_before = os.path.join(save_dir, f'before_sorting_{method_name}_{month_filename}.png')
-        save_path_after = os.path.join(save_dir, f'after_sorting_{method_name}_{month_filename}.png')
+        # Open zip file to save all the clipped cells images
+        zip_save_path = os.path.join(transient_transcription_output_dir, station, f"{station}_clipped_cells.zip")
+        roi_zip = zipfile.ZipFile(zip_save_path, 'a', compression=zipfile.ZIP_DEFLATED)
 
-        # Save images
-        cv2.imwrite(save_path_before, image_before_sorting)
-        cv2.imwrite(save_path_after, image_after_sorting)
+        written_filenames = set()
 
-        # Load images for display
-        img_before = cv2.imread(save_path_before)
-        img_before = cv2.cvtColor(img_before, cv2.COLOR_BGR2RGB)
+        ## ILLUSTRATION PURPOSES ONLY
+        # # Define save paths
+        # save_path_before = os.path.join(save_dir, f'before_sorting_{method_name}_{month_filename}.png')
+        # save_path_after = os.path.join(save_dir, f'after_sorting_{method_name}_{month_filename}.png')
+
+        # # Save images
+        # cv2.imwrite(save_path_before, image_before_sorting)
+        # cv2.imwrite(save_path_after, image_after_sorting)
+
+        # # Load images for display
+        # img_before = cv2.imread(save_path_before)
+        # img_before = cv2.cvtColor(img_before, cv2.COLOR_BGR2RGB)
         
-        img_after = cv2.imread(save_path_after)
-        img_after = cv2.cvtColor(img_after, cv2.COLOR_BGR2RGB)
+        # img_after = cv2.imread(save_path_after)
+        # img_after = cv2.cvtColor(img_after, cv2.COLOR_BGR2RGB)
 
         # # # Save or display the images for inspection
         # plt.imshow(img_before)
@@ -855,23 +873,6 @@ def transcription(detected_table_cells, ocr_model, tesseract_path, transient_tra
                 ROI = table_copy[y:y+h, x:x+w]  # Ensure consistency with visualization bounding boxes
                 # ********
 
-                # # Crop raw cell from original (non-binarized) image
-                # cell_crop_color = table_copy[y:y+h, x:x+w]  # Now table_copy is the original image
-
-                # # Convert to grayscale
-                # gray_cell = cv2.cvtColor(cell_crop_color, cv2.COLOR_BGR2GRAY)
-
-                # # Binarize using INVERTED thresholding (to thicken digits)
-                # # binarized_inv = cv2.adaptiveThreshold(gray_cell, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 35, 4)  # (21,4) was good.
-                # binarized_inv = cv2.adaptiveThreshold(gray_cell, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 51,6)   # ahd it at (51,6) before   (35,6) was good but make some light text disappear. 
-
-                # # Invert back to get black text on white background
-                # binarized_cell = cv2.bitwise_not(binarized_inv)
-
-                # # Assign this as your final ROI for OCR
-                # ROI = binarized_cell
-
-
                 # ### FOR ILLUSTRATION PURPOSES: This line below is about drawing a rectangle on the image with the shape of the bounding box. Its not needed for the OCR. This is only for debugging purposes.
                 # # image_with_all_bounding_boxes = cv2.rectangle(image_with_all_bounding_boxes, (x, y), (x + w, y + h), (0, 255, 0), 5)
 
@@ -893,7 +894,7 @@ def transcription(detected_table_cells, ocr_model, tesseract_path, transient_tra
                     cv2.imwrite(save_path_detected_text, ROI)
                     if ocr_model == 'Tesseract-OCR':
                     # Using Tesseract-OCR
-                        ocr_result = pytesseract.image_to_string(save_path_detected_text, lang='cobecore-V7_702', config='--oem 1 --psm 7 -c tessedit_char_whitelist=0123456789') # Just added -c tessedit_char_whitelist=0123456789 to really limit the text type/values detected
+                        ocr_result = pytesseract.image_to_string(save_path_detected_text, lang='cobecore-V8_501', config='--oem 1 --psm 7 -c tessedit_char_whitelist=0123456789') # Just added -c tessedit_char_whitelist=0123456789 to really limit the text type/values detected
 
                         # Here's a brief explanation of some Page Segmentation Modes (PSMs) available in Tesseract:
                         # 0: Orientation and script detection (OSD) only.
@@ -944,26 +945,10 @@ def transcription(detected_table_cells, ocr_model, tesseract_path, transient_tra
                                                
                         # Attain the Ms Excel Template cell coordinates
                         # # Determine the cell reference using the x coodrinate of the bounding box, row index, maximum column number, and image/table width
-                        # cell_ref = calculate_cell_reference(x, row_index, max_columns=24, table_width=image_width) # e.g., A1, B5, etc.
-
-                        # # Dictionary to track assigned columns per row
-                        # assigned_columns_per_row = {}
-                        # cell_ref = calculate_cell_reference(x, new_w, row_index, max_columns=24, table_width=image_width) # e.g., A1, B5, etc.
-                        cell_ref = calculate_cell_reference(x, w, row_index, assigned_columns_per_row, max_columns=24, table_width=image_width)
-                        # print(f"saving to {cell_ref}")
-                        # # Additional check: Incase the cell (cell_ref) is already occupied with transcribed text. We then opt for the cell below within the same column
-                        # column_letter = openpyxl.utils.get_column_letter(math.floor(x / image_width * no_of_columns) + 1)
-                        # initial_row_index = row_index  # Store the initial row index
-                        # # Check if the cell is already occupied
-                        # if ws[cell_ref].value is not None:
-                        #     row_index += 1
-                        #     cell_ref = f'{column_letter}{row_index}'
+                        cell_ref = calculate_cell_reference(x, w, row_index, assigned_columns_per_row, max_columns=24, table_width=image_width) # e.g., A1, B5, etc.
                         
                         # Place the OCR/HTR recognized text in its respective Ms Excel cell 
                         ws[cell_ref].value = ocr_result.strip()  # Remove leading/trailing whitespace   
-
-                        # # Restore the row index to the initial value
-                        # row_index = initial_row_index
 
                         # Set up border styles for excel output
                         thin_border = Border(
@@ -978,7 +963,7 @@ def transcription(detected_table_cells, ocr_model, tesseract_path, transient_tra
                                 cell.border = thin_border
 
                         
-                        ## CONTINOUS LEARNING (MACHINE-LEARNING) OF THE OCR
+                        ## CONTINOUS LEARNING (MACHINE-LEARNING) OF THE OCR. # Save clipped cells as images for a training dataset
                         
                         # Adjust cell_ref to match final Excel layout: 2 columns inserted + 3 header rows added
                         adjusted_column_index = openpyxl.utils.column_index_from_string(cell_ref[0]) + 2  # +2 for two inserted columns on the left side of the excel sheet. In our case these were the 'Pentad No.' and the Date. Change this depending on your sheets or make it +0 (Zero) if there were no extra columns to the left
@@ -990,18 +975,17 @@ def transcription(detected_table_cells, ocr_model, tesseract_path, transient_tra
                         # Construct adjusted Excel-style reference
                         adjusted_cell_ref = f"{adjusted_column_letter}{adjusted_row_index}"
                         
-                        # Construct a filename for the clipped cell imgae (ROI) using month_filename and Excel cell reference
-                        roi_filename = f"{month_filename}_{adjusted_cell_ref}.png"
+                        if method_name == 'Top': # Since top cordinates of the bounding boxes are the most prefered organizing method here
+                            # Save the clipped images inside the loop:
+                            roi_filename = f"{month_filename}_{adjusted_cell_ref}.png"
 
-                        # Save the clipped cell image (ROI) for further training of the OCR model; For continous learning of different handwritting styles usign correct/confirmed values in the Quality Assessment and Quality Control module
-                        # Set path to save
-                        roi_save_dir = os.path.join(transient_transcription_output_dir, station, 'clipped_cells')
-                        os.makedirs(roi_save_dir, exist_ok=True)
+                            if roi_filename in written_filenames:
+                                continue
+                            
+                            written_filenames.add(roi_filename) # Mark it as saved
 
-                        full_roi_save_path = os.path.join(roi_save_dir, roi_filename)
-
-                        # Save the ROI image
-                        cv2.imwrite(full_roi_save_path, ROI)
+                            _, encoded = cv2.imencode('.png', ROI)
+                            roi_zip.writestr(roi_filename, encoded.tobytes())
 
                     else:
                         print('No values detected in clip')

@@ -95,88 +95,6 @@ def calculate_average_angle(contours, orientation='horizontal'):
     return average_angle
 
 
-
-# def deskew(image):
-#     '''
-#     Deskews an image by detecting and correcting its skew based on the orientation of detected horizontal lines.
-
-#     This function corrects the skew of an input image by first detecting horizontal lines within the image using morphological operations. It calculates the average angle of these detected lines and rotates the image by this angle to align the horizontal lines correctly, effectively deskewing the image. The result is an image where the content is horizontally aligned, which is particularly useful for preprocessing before further analysis or OCR (Optical Character Recognition).
-
-#     Parameters
-#     --------------
-#     image : 
-#         The input image that needs to be deskewed. This image can be in grayscale or color format.
-
-#     Returns
-#     --------------
-#     rotated_hor : 
-#         The deskewed image after rotation to correct horizontal alignment. The output image is rotated by the calculated average angle of the detected horizontal lines.
-#     '''
-
-
-#     # Detect horizontal lines and calculate the average angle
-#     hor_contours = detect_lines(image, (np.array(image).shape[1] // 20, 1), iterations=1)
-#     hor_angle = calculate_average_angle(hor_contours, orientation='horizontal')
-
-#     # Rotate the image to deskew horizontally
-#     (h, w) = image.shape[:2]
-#     center = (h//2 , w//2)
-#     M_hor = cv2.getRotationMatrix2D(center, -hor_angle, 1.0)
-#     rotated_hor = cv2.warpAffine(image, M_hor, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
-#     print(f"[DEBUG] Detected skew angle: {hor_angle:.2f} degrees")
-#     # # Detect vertical lines and calculate the average angle
-#     # ver_contours = detect_lines(rotated_hor, (1, np.array(image).shape[0] // 20), iterations=1)
-#     # ver_angle = calculate_average_angle(ver_contours, orientation='vertical')
-
-#     # # Rotate the image to deskew vertically
-#     # M_ver = cv2.getRotationMatrix2D(center, -ver_angle, 1.0)
-#     # rotated_ver = cv2.warpAffine(rotated_hor, M_ver, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
-
-#     return rotated_hor
-
-
-# def deskew(image):
-#     '''
-#     Deskews only the page by detecting and correcting its skew while keeping text aligned.
-
-#     This function corrects the skew of an input image by first detecting horizontal lines using morphological operations.
-#     Instead of applying full rotation, it uses an affine transformation with a shear matrix to correct only the page skew.
-#     This ensures that the text remains aligned while straightening the background.
-
-#     Parameters
-#     --------------
-#     image : 
-#         The input image that needs to be deskewed. This image can be in grayscale or color format.
-
-#     Returns
-#     --------------
-#     deskewed_image : 
-#         The deskewed image after applying affine transformation to correct horizontal alignment.
-#     '''
-
-#     # Detect horizontal lines and calculate the average skew angle
-#     hor_contours = detect_lines(image, (np.array(image).shape[1] // 20, 1), iterations=1)
-#     hor_angle = calculate_average_angle(hor_contours, orientation='horizontal')
-
-#     # If angle is near zero, return the original image
-#     if abs(hor_angle) < 0.1:
-#         print("[DEBUG] No significant skew detected. Returning original image.")
-#         return image
-
-#     # Get image dimensions
-#     (h, w) = image.shape[:2]
-
-#     # Define shear transformation matrix to tilt only the background while keeping text aligned
-#     M = np.float32([[1, np.tan(np.radians(hor_angle)), 0], [0, 1, 0]])
-
-#     # Apply affine warp to correct skew (background shifts, text stays aligned)
-#     deskewed_image = cv2.warpAffine(image, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
-
-#     print(f"[DEBUG] Detected skew angle: {hor_angle:.2f} degrees (Correcting with Shear Transformation)")
-
-#     return deskewed_image
-
-
 def deskew(image):
     '''
     Rotates the entire image (page) while keeping text naturally aligned.
@@ -642,53 +560,7 @@ def table_and_cell_detection(image_in_grayscale, binarized_image, original_image
 
     # Store y-coordinates and x-limits of horizontal dots **ONLY NEAR TEXT**
     horizontal_lines = []
-
-    # # Identify large text components (potential numbers)
-    # text_components = []
-    # dots_to_remove = np.zeros_like(labels)  # Mask for dots to be removed
-
-    # for i in range(1, num_labels):
-    #     x, y, w, h, area = stats[i, cv2.CC_STAT_LEFT], stats[i, cv2.CC_STAT_TOP], stats[i, cv2.CC_STAT_WIDTH], stats[i, cv2.CC_STAT_HEIGHT], stats[i, cv2.CC_STAT_AREA]
-
-    #     aspect_ratio = w / h  # Compute aspect ratio
-
-    #     # Keep only real text (numbers) as reference components
-    #     if area > 100 and aspect_ratio < ASPECT_RATIO_THRESHOLD and h > HEIGHT_THRESHOLD: 
-    #         text_components.append((x, y, w, h))
-    #         filtered_image[labels == i] = 255  # Keep text
-    
-    #     else:
-    #         dots_to_remove[labels == i] = 255  # Mark dots for removal
-
-    # # # Only for visualization purposes. Uncomment the lines below to visualize the filtered table where all the dots and noise have been removed from the image
-    # # plt.imshow(filtered_image, cmap="gray")
-    # # plt.title("First Filtered Image - No Dots - No Lines")
-    # # plt.show()
-
-    # # Process small dots (very small blobs) and keep only those near the large blobs (text/digit locations)
-    # for i in range(1, num_labels):
-    #     x, y, w, h, area = stats[i, cv2.CC_STAT_LEFT], stats[i, cv2.CC_STAT_TOP], stats[i, cv2.CC_STAT_WIDTH], stats[i, cv2.CC_STAT_HEIGHT], stats[i, cv2.CC_STAT_AREA]
-
-    #     # Skip already kept text components
-    #     if area > 100 and aspect_ratio < ASPECT_RATIO_THRESHOLD and h > HEIGHT_THRESHOLD:
-    #         continue  # Skip large text components
-
-    #     # Check if this small dot is close to any number
-    #     keep_dot = False
-    #     for tx, ty, tw, th in text_components:
-    #         # Compute distance from dot center to the number bounding box
-    #         dot_center_x, dot_center_y = x + w // 2, y + h // 2
-    #         if (tx - PROXIMITY_THRESHOLD <= dot_center_x <= tx + tw + PROXIMITY_THRESHOLD and
-    #             ty - PROXIMITY_THRESHOLD <= dot_center_y <= ty + th + PROXIMITY_THRESHOLD):
-    #             keep_dot = True
-    #             # Store the y-position and x-limits of dots near text
-    #             horizontal_lines.append((dot_center_y, x, x + w))  # (y-position, x_start, x_end)
-    #             break  # No need to check other numbers
-
-    #     if keep_dot:
-    #         filtered_image[labels == i] = 255  # Keep dots near numbers
-
-    
+  
     # Pre-compute aspect ratios for all components
     if num_labels > 1:
         widths = stats[1:, cv2.CC_STAT_WIDTH]

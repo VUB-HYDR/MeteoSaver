@@ -1,0 +1,12 @@
+opencv-python~=4.6.0.66
+numpy~=1.26.4
+matplotlib
+scikit-learn~=1.4.1.post1
+openpyxl~=3.1.2
+pytesseract~=0.3.13
+easyocr~=1.7.2
+pandas~=2.0.3
+pytesseract~=0.3.13
+scipy~=1.11.4
+pillow~=9.4.0
+paddleocr~=2.6.1.3
