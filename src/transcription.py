@@ -9,6 +9,7 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 # from paddleocr import PaddleOCR,draw_ocr
 from PIL import Image, ImageDraw, ImageFont
 import pytesseract
+from bidi.algorithm import get_display
 import easyocr
 import numpy as np
 import pandas as pd
@@ -894,7 +895,7 @@ def transcription(detected_table_cells, ocr_model, tesseract_path, transient_tra
                     cv2.imwrite(save_path_detected_text, ROI)
                     if ocr_model == 'Tesseract-OCR':
                     # Using Tesseract-OCR
-                        ocr_result = pytesseract.image_to_string(save_path_detected_text, lang='cobecore-V8_501', config='--oem 1 --psm 7 -c tessedit_char_whitelist=0123456789') # Just added -c tessedit_char_whitelist=0123456789 to really limit the text type/values detected
+                        ocr_result = pytesseract.image_to_string(save_path_detected_text, lang='cobecore-V9_405', config='--oem 1 --psm 7 -c tessedit_char_whitelist=0123456789') # Just added -c tessedit_char_whitelist=0123456789 to really limit the text type/values detected
 
                         # Here's a brief explanation of some Page Segmentation Modes (PSMs) available in Tesseract:
                         # 0: Orientation and script detection (OSD) only.
