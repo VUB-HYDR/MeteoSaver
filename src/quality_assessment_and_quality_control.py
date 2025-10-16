@@ -926,13 +926,14 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
 
                     # Also check T'a and confirm or correct
                     # Reverse the ea calculation to find T
-                    calculated_Ta = (243.5 * np.log(ea / 6.112)) / (17.67 - np.log(ea / 6.112))
+                    if ea > 0: # to avoid error of ln(0) in the following equation
+                        calculated_Ta = (243.5 * np.log(ea / 6.112)) / (17.67 - np.log(ea / 6.112))
 
-                    if np.abs(calculated_Ta - Ta) <= uncertainty_margin:
-                        highlight_change('FF6DCD57', wet_cell, new_version_of_file) # Confirmed value. Highlight in green
-                    else:
-                        wet_cell.value = round(calculated_Ta, decimal_places)
-                        highlight_change('FF6DCD57', wet_cell, new_version_of_file) # Confirmed value. Highlight in green
+                        if np.abs(calculated_Ta - Ta) <= uncertainty_margin:
+                            highlight_change('FF6DCD57', wet_cell, new_version_of_file) # Confirmed value. Highlight in green
+                        else:
+                            wet_cell.value = round(calculated_Ta, decimal_places)
+                            highlight_change('FF6DCD57', wet_cell, new_version_of_file) # Confirmed value. Highlight in green
                 
             # If both T (dry) and T'a (wet) are confirmed, calculate ea, delta_e, and U
             if all(is_highlighted(cell, 'FF6DCD57') for cell in [dry_cell, wet_cell]) and all(is_string_convertible_to_float(cell.value) for cell in [dry_cell, wet_cell]):
