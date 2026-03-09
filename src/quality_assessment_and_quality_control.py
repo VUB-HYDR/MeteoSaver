@@ -219,7 +219,28 @@ def correct_80s_misreads(value):
 def calculate_U(ea, delta_e):
     # Calculate relative humidity using the provided formula
     return (ea / (delta_e + ea)) * 100 if (delta_e + ea) != 0 else 0
-    
+
+def es_hpa(Tc: float) -> float:
+    """Saturation vapour pressure (hPa), Magnus."""
+    return 6.112 * np.exp((17.67 * Tc) / (Tc + 243.5))
+
+def psychrometric_gamma_hpa_per_c(Tw_c: float, P_hpa: float = 1013.25) -> float:
+    """
+    Psychrometric coefficient gamma (hPa/°C).
+    WMO-style: gamma = 0.00066*(1+0.00115*Tw)*P
+    """
+    return 0.00066 * (1.0 + 0.00115 * Tw_c) * P_hpa
+
+def ea_from_dry_wet(Td_c: float, Tw_c: float, P_hpa: float = 1013.25) -> float:
+    """
+    Actual vapour pressure ea (hPa) from dry-bulb Td and wet-bulb Tw.
+    ea = es(Tw) - gamma*(Td - Tw)
+    """
+    gamma = psychrometric_gamma_hpa_per_c(Tw_c, P_hpa=P_hpa)
+    ea = es_hpa(Tw_c) - gamma * (Td_c - Tw_c)
+    return ea
+
+
 def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_QA_QC_transcribed_hydroclimate_data_dir_station, month_filename, max_temperature_threshold, min_temperature_threshold, decimal_places, uncertainty_margin, header_rows, multi_day_totals, multi_day_averages, max_days_for_multi_day_total, multi_day_totals_rows, final_totals_rows, excluded_rows, excluded_columns, daily_temperature_columns, daily_temperature_columns_and_diurnal_temperature_range, daily_precipitation_column, dry_and_wet_bulb_temperature_columns):
     '''
     Performs Quality Assessment and Quality Control (QA/QC) checks on transcribed hydroclimatic data.
@@ -877,6 +898,8 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
         if row[0].row in excluded_rows:
             continue 
         
+        P_HPA_DEFAULT = 1013.25  # standard atmospheric surface pressure at mean sea level (MSL)
+
         for i in range(0, len(dry_and_wet_bulb_temperature_columns), 2):
             dry_col = dry_and_wet_bulb_temperature_columns[i]
             wet_col = dry_and_wet_bulb_temperature_columns[i+1]
@@ -924,16 +947,16 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
                         highlight_change('FF6DCD57', dry_cell, new_version_of_file) # Confirmed value. Highlight in green
 
 
-                    # Also check T'a and confirm or correct
-                    # Reverse the ea calculation to find T
-                    if ea > 0: # to avoid error of ln(0) in the following equation
-                        calculated_Ta = (243.5 * np.log(ea / 6.112)) / (17.67 - np.log(ea / 6.112))
+                    # # Also check T'a and confirm or correct
+                    # # Reverse the ea calculation to find T
+                    # if ea > 0: # to avoid error of ln(0) in the following equation
+                    #     calculated_Ta = (243.5 * np.log(ea / 6.112)) / (17.67 - np.log(ea / 6.112))
 
-                        if np.abs(calculated_Ta - Ta) <= uncertainty_margin:
-                            highlight_change('FF6DCD57', wet_cell, new_version_of_file) # Confirmed value. Highlight in green
-                        else:
-                            wet_cell.value = round(calculated_Ta, decimal_places)
-                            highlight_change('FF6DCD57', wet_cell, new_version_of_file) # Confirmed value. Highlight in green
+                    #     if np.abs(calculated_Ta - Ta) <= uncertainty_margin:
+                    #         highlight_change('FF6DCD57', wet_cell, new_version_of_file) # Confirmed value. Highlight in green
+                    #     else:
+                    #         wet_cell.value = round(calculated_Ta, decimal_places)
+                    #         highlight_change('FF6DCD57', wet_cell, new_version_of_file) # Confirmed value. Highlight in green
                 
             # If both T (dry) and T'a (wet) are confirmed, calculate ea, delta_e, and U
             if all(is_highlighted(cell, 'FF6DCD57') for cell in [dry_cell, wet_cell]) and all(is_string_convertible_to_float(cell.value) for cell in [dry_cell, wet_cell]):
@@ -943,7 +966,8 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
 
                 if T >= Ta and (not is_highlighted(ea_cell, 'FF6DCD57') or not is_highlighted(delta_e_cell, 'FF6DCD57') or not is_highlighted(U_cell, 'FF6DCD57')):
                     # Calculate actual vapour pressure (ea) from Ta (wet bulb)
-                    calculated_ea = 6.112 * np.exp((17.67 * Ta) / (Ta + 243.5))
+                    # calculated_ea = 6.112 * np.exp((17.67 * Ta) / (Ta + 243.5))
+                    calculated_ea = ea_from_dry_wet(T, Ta, P_hpa=P_HPA_DEFAULT)
                     # Update and highlight
                     ea_cell.value = round(calculated_ea, decimal_places)
                     highlight_change('FF6DCD57', ea_cell, new_version_of_file) # Confirmed value. Highlight in green
@@ -980,23 +1004,42 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
                 # Now calculate T'a from ea
                 #calculated_Ta = (243.5 * np.log(calculated_ea / 6.112)) / (17.67 - np.log(calculated_ea / 6.112))
                 ratio = calculated_ea / 6.112
-                if ratio > 0:
-                    calculated_Ta = (243.5 * np.log(ratio)) / (17.67 - np.log(ratio))
+                # if ratio > 0:
+                if ratio > 0 and is_string_convertible_to_float(wet_cell.value):
 
-                    if is_string_convertible_to_float(wet_cell.value):
-                        Ta = float(wet_cell.value)
-                        if np.abs(calculated_Ta - Ta) <= uncertainty_margin:
-                            # All checks confirmed: update ea and U
-                            ea_cell.value = round(calculated_ea, decimal_places)
-                            highlight_change('FF6DCD57', ea_cell, new_version_of_file)
-                            highlight_change('FF6DCD57', wet_cell, new_version_of_file)
-                            highlight_change('FF6DCD57', dry_cell, new_version_of_file)
-                            highlight_change('FF6DCD57', delta_e_cell, new_version_of_file)
+                    # infer Ta from (T, T'a, ea)
+                    Ta = float(wet_cell.value)
+                    calculated_ea_using_ta = ea_from_dry_wet(T, Ta, P_HPA_DEFAULT)
 
-                            # Calculate U from ea and delta_e
-                            calculated_U = calculate_U(calculated_ea, delta_e)
-                            U_cell.value = round(calculated_U, decimal_places)
-                            highlight_change('FF6DCD57', U_cell, new_version_of_file)
+                    if np.abs(calculated_ea - calculated_ea_using_ta) <= uncertainty_margin:
+                        # All checks confirmed: update ea and U
+                        ea_cell.value = round(calculated_ea, decimal_places)
+                        highlight_change('FF6DCD57', ea_cell, new_version_of_file)
+                        highlight_change('FF6DCD57', wet_cell, new_version_of_file)
+                        highlight_change('FF6DCD57', dry_cell, new_version_of_file)
+                        highlight_change('FF6DCD57', delta_e_cell, new_version_of_file)
+
+                        # Calculate U from ea and delta_e
+                        calculated_U = calculate_U(calculated_ea, delta_e)
+                        U_cell.value = round(calculated_U, decimal_places)
+                        highlight_change('FF6DCD57', U_cell, new_version_of_file)
+
+                    # calculated_Ta = (243.5 * np.log(ratio)) / (17.67 - np.log(ratio))
+
+                    # if is_string_convertible_to_float(wet_cell.value):
+                    #     Ta = float(wet_cell.value)
+                    #     if np.abs(calculated_Ta - Ta) <= uncertainty_margin:
+                    #         # All checks confirmed: update ea and U
+                    #         ea_cell.value = round(calculated_ea, decimal_places)
+                    #         highlight_change('FF6DCD57', ea_cell, new_version_of_file)
+                    #         highlight_change('FF6DCD57', wet_cell, new_version_of_file)
+                    #         highlight_change('FF6DCD57', dry_cell, new_version_of_file)
+                    #         highlight_change('FF6DCD57', delta_e_cell, new_version_of_file)
+
+                    #         # Calculate U from ea and delta_e
+                    #         calculated_U = calculate_U(calculated_ea, delta_e)
+                    #         U_cell.value = round(calculated_U, decimal_places)
+                    #         highlight_change('FF6DCD57', U_cell, new_version_of_file)
 
             # If T'a is confirmed (green) but T is not, attempt to confirm ea, Δe, U, and T
             if is_highlighted(wet_cell, 'FF6DCD57') and not is_highlighted(dry_cell, 'FF6DCD57'):
@@ -1007,9 +1050,13 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
                     transcribed_ea = float(ea_cell.value)
 
                     # Step 1: Calculate ea from T'a
-                    calculated_ea = 6.112 * np.exp((17.67 * Ta) / (Ta + 243.5))
+                    calculated_ea_using_ta = ea_from_dry_wet(T, Ta, P_HPA_DEFAULT)
 
-                    if np.abs(calculated_ea - transcribed_ea) <= uncertainty_margin:
+
+
+                    # calculated_ea = 6.112 * np.exp((17.67 * Ta) / (Ta + 243.5))
+
+                    if np.abs(calculated_ea_using_ta - transcribed_ea) <= uncertainty_margin:
                         # Confirm ea
                         highlight_change('FF6DCD57', ea_cell, new_version_of_file)
 
