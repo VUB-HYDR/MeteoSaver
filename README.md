@@ -120,7 +120,7 @@ pip install -r requirements.in
 ### Docker
 
 > [!WARNING]
-> It is adviced to work in isolated Docker environments in order to ensure reproducibility, future online deployments, but first and foremost security of your computer system. Pip and to a lesser degree Conda and their python environments are a known malware vector. Although the framework we present vets the loaded library we can not assure the safety of all dependencies created downstream. The use of the local non-containerized setup is therefore not recommended.
+> A Docker-based setup is recommended for users who want a more isolated and reproducible execution environment. Local Conda or virtual-environment installations are also supported, but containerization may reduce dependency and system-configuration issues across platforms.
 
 The dockerfile included provides a Conda environment ([see here for docker install instructions](https://docs.docker.com/engine/install/)).
 You can build this docker image using the below command. This will download all required
@@ -130,13 +130,13 @@ will be required.
 
 ```
 # In the main project directory run
-docker build -f Dockerfile -t transcribing_drc_data_environment .
+docker build -f Dockerfile -t meteosaver_env .
 ```
 
 To spin up a docker image using:
 
 ```
-docker run -it -v /local_data:/docker_data_dir transcribing_drc_data_environment
+docker run -it -v /local_data:/docker_data_dir meteosaver_env
 ```
 
 ## Modules
