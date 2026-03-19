@@ -173,7 +173,7 @@ def save_intermediate_version(workbook, stage, transient_transcription_output_di
     workbook.save(intermediate_file)
 
     
-def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_QA_QC_transcribed_hydroclimate_data_dir_station, month_filename, max_temperature_threshold, min_temperature_threshold, decimal_places, uncertainty_margin, header_rows, multi_day_totals, multi_day_averages, max_days_for_multi_day_total, multi_day_totals_rows, final_totals_rows, excluded_rows, excluded_columns, columns_to_check, columns_to_check_with_extra_variable):
+def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_QA_QC_transcribed_hydroclimate_data_dir_station, month_filename, max_temperature_threshold, min_temperature_threshold, decimal_places, uncertainty_margin, header_rows, multi_day_totals, multi_day_averages, max_days_for_multi_day_total, multi_day_totals_rows, final_totals_rows, excluded_rows, excluded_columns, daily_temperature_columns, daily_temperature_columns_and_diurnal_temperature_range, daily_precipitation_column):
     '''
     Performs Quality Assessment and Quality Control (QA/QC) checks on transcribed hydroclimatic data.
 
@@ -219,9 +219,9 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
         Row indices to exclude from QA/QC checks.
     excluded_columns : list of int
         Column indices to exclude from QA/QC checks.
-    columns_to_check : list of str
+    daily_temperature_columns : list of str
         List of column letters to check for temperature variables (e.g., max, min, average).
-    columns_to_check_with_extra_variable : list of str
+    daily_temperature_columns_and_diurnal_temperature_range : list of str
         List of column letters to check for temperature variables, including additional variables like amplitude (duirnal temperature range).
 
     Returns
@@ -301,7 +301,7 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
 
     for current_index, row in enumerate(rows_to_process):
 
-        for column in columns_to_check: # Where these columns to check represent [ Max Temperature, Min Temperature, Average Temperature] 
+        for column in daily_temperature_columns + daily_precipitation_column: # Where these columns to check represent [ Max Temperature, Min Temperature, Average Temperature] 
             # Get the value of the multi day total (in our case '5/6-day Total') that was transcribed. Note Months with 31 days ahve some 6 day todays considering 26th to 31st
             
             # Get the value of the multi-day total for the current row
@@ -343,12 +343,13 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
                 else:
                     if is_string_convertible_to_float(cell_value):
                         cell_value = float(cell_value)
-                        if cell_value >= 100.0: 
-                            manipulated_value = cell_value/10.0 # Special manipulation. If transcribed temperature value > 100, divide by 10.
-                            cell_value = manipulated_value
-                            highlight_change('CC3300', cell_coordinate, new_version_of_file) #CC3300 is Dark Red. Highlight to show that this special manupilation was done on this cell.
-                        if cell_value < min_temperature_threshold or cell_value > max_temperature_threshold:
-                            highlight_change('CC3300', cell_coordinate, new_version_of_file) #CC3300 is Dark Red. Highlight to show that temperature exceeds set thresholds for maximum or minimum 
+                        if column in daily_temperature_columns:
+                            if cell_value >= 100.0: 
+                                manipulated_value = cell_value/10.0 # Special manipulation. If transcribed temperature value > 100, divide by 10.
+                                cell_value = manipulated_value
+                                highlight_change('CC3300', cell_coordinate, new_version_of_file) #CC3300 is Dark Red. Highlight to show that this special manupilation was done on this cell.
+                            if cell_value < min_temperature_threshold or cell_value > max_temperature_threshold:
+                                highlight_change('CC3300', cell_coordinate, new_version_of_file) #CC3300 is Dark Red. Highlight to show that temperature exceeds set thresholds for maximum or minimum 
                         cell_values_for_days.append(cell_value)
                         cell_coordinate.value = cell_value
                         new_workbook.save(new_version_of_file)
@@ -371,7 +372,7 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
                 highlight_change('75696F', cell_for_total, new_version_of_file)  #75696F is Grey. Highlight to show that transcribed multi-day total values are not equal to the transcribed daily values, and hence we cant confirm if the transcription was correct.
                 new_workbook.save(new_version_of_file)
             
-            if multi_day_averages:
+            if multi_day_averages and column in daily_temperature_columns:
                 cell_for_average = new_worksheet[f"{column}{row + 1}"]
                 average_value = cell_for_average.value
 
@@ -408,16 +409,16 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
     # We check the cells by rows, and manipulate where necessary
     
     # First, Convert column letters to numbers
-    columns_to_check_indices = [openpyxl.utils.column_index_from_string(col) for col in columns_to_check]
+    daily_temperature_columns_indices = [openpyxl.utils.column_index_from_string(col) for col in daily_temperature_columns]
 
-    # Get min_col and max_col from the columns_to_check
-    min_col = min(columns_to_check_indices)
-    max_col = max(columns_to_check_indices)
+    # Get min_col and max_col from the daily_temperature_columns
+    min_col = min(daily_temperature_columns_indices)
+    max_col = max(daily_temperature_columns_indices)
 
     for row in new_worksheet.iter_rows(min_row=header_rows+1, max_row=new_worksheet.max_row, min_col=min_col, max_col=max_col):     
             
         # Create a dictionary to map column names (D, E, F, etc.) to the cell values
-        row_cells = {columns_to_check[i]: row[columns_to_check_indices[i] - min_col] for i in range(len(columns_to_check))}
+        row_cells = {daily_temperature_columns[i]: row[daily_temperature_columns_indices[i] - min_col] for i in range(len(daily_temperature_columns))}
 
         # Now you can access the cells dynamically using the column names
         D = row_cells.get('D')  # Max Temp
@@ -637,16 +638,16 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
 
     #Adding the extra variable column i.e. Ampl. (Diurnal Temperature Range)
     # First, Convert column letters to numbers
-    columns_to_check_indices_with_extra_variable = [openpyxl.utils.column_index_from_string(col) for col in columns_to_check_with_extra_variable]
+    daily_temperature_columns_and_diurnal_temperature_range_indices = [openpyxl.utils.column_index_from_string(col) for col in daily_temperature_columns_and_diurnal_temperature_range]
 
-    # Get min_col and max_col from the columns_to_check
-    min_col_with_extra_variable = min(columns_to_check_indices_with_extra_variable)
-    max_col_with_extra_variable = max(columns_to_check_indices_with_extra_variable)
+    # Get min_col and max_col from the daily_temperature_columns_and_diurnal_temperature_range
+    min_col_with_extra_variable = min(daily_temperature_columns_and_diurnal_temperature_range_indices)
+    max_col_with_extra_variable = max(daily_temperature_columns_and_diurnal_temperature_range_indices)
 
     for row in new_worksheet.iter_rows(min_row=header_rows+1, max_row=new_worksheet.max_row, min_col=min_col_with_extra_variable, max_col=max_col_with_extra_variable):    
             
         # Create a dictionary to map column names (D, E, F, etc.) to the cell values
-        row_cells = {columns_to_check_with_extra_variable[i]: row[columns_to_check_indices_with_extra_variable[i] - min_col] for i in range(len(columns_to_check_with_extra_variable))}
+        row_cells = {daily_temperature_columns_and_diurnal_temperature_range[i]: row[daily_temperature_columns_and_diurnal_temperature_range_indices[i] - min_col] for i in range(len(daily_temperature_columns_and_diurnal_temperature_range))}
 
         # Now you can access the cells dynamically using the column names
         D = row_cells.get('D')  # Max Temp
@@ -734,7 +735,7 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
             continue 
         
         # Create a dictionary to map column names (D, E, F, etc.) to the cell values
-        row_cells = {columns_to_check[i]: row[columns_to_check_indices[i] - min_col] for i in range(len(columns_to_check))}
+        row_cells = {daily_temperature_columns[i]: row[daily_temperature_columns_indices[i] - min_col] for i in range(len(daily_temperature_columns))}
 
         # Now you can access the cells dynamically using the column names
         D = row_cells.get('D')  # Max Temp
@@ -773,7 +774,7 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
     # New logic to recalculate multi-day totals and averages if values of all the days leading up to it are confirmed in previous QA/QC steps (highlighted green)
     for current_index, row in enumerate(rows_to_process):
 
-        for column in columns_to_check: # Where these columns to check represent [ Max Temperature, Min Temperature, Average Temperature] 
+        for column in daily_temperature_columns + daily_precipitation_column: # Where these columns to check represent [ Max Temperature, Min Temperature, Average Temperature] 
 
             # Dynamically determine the number of offset cells (days considered in calculation of multi-day totals) based on row gaps, header rows, and presence of multi-day averages (placed immediatelly after the totals)
             if current_index == 0:
@@ -802,7 +803,7 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
             cell_for_total = new_worksheet[f"{column}{row}"]
             confirmed_cell_for_total = is_highlighted(cell_for_total, 'FF6DCD57') # Check whether the multi-day total was confirmed (green)
 
-            if multi_day_averages:
+            if multi_day_averages and column in daily_temperature_columns:
                 cell_for_average = new_worksheet[f"{column}{row + 1}"]
                 confirmed_cell_for_average = is_highlighted(cell_for_average, 'FF6DCD57')  # Check if multi-day average was confirmed (green)
 
@@ -842,7 +843,7 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
                 new_workbook.save(new_version_of_file)
 
             # Recalculate multi-day average if all days are confirmed
-            if multi_day_averages and all(is_highlighted(day, 'FF6DCD57') for day in days) and not confirmed_cell_for_average:
+            if multi_day_averages and column in daily_temperature_columns and all(is_highlighted(day, 'FF6DCD57') for day in days) and not confirmed_cell_for_average:
                 average_value = mean(float(day.value) for day in days if day.value is not None and is_string_convertible_to_float(day.value))
                 cell_for_average.value = round(average_value, 1)
                 highlight_change('FF6DCD57', cell_for_average, new_version_of_file)  # Highlight average in green
@@ -859,7 +860,7 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
     # Here we re-do all the multi-day total and average checks, after the previous QA/QC steps that corrected some previously wrongly transcribed values
     for current_index, row in enumerate(rows_to_process):
 
-        for column in columns_to_check: # Where these columns to check represent [ Max Temperature, Min Temperature, Average Temperature] 
+        for column in daily_temperature_columns + daily_precipitation_column: # Where these columns to check represent [ Max Temperature, Min Temperature, Average Temperature] 
             # Get the value of the multi day total (in our case '5/6-day Total') that was transcribed. Note Months with 31 days ahve some 6 day todays considering 26th to 31st
             
             # Get the value of the multi-day total for the current row
@@ -907,12 +908,13 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
                 else:
                     if is_string_convertible_to_float(cell_value):
                         cell_value = float(cell_value)
-                        if cell_value >= 100.0: 
-                            manipulated_value = cell_value/10.0 # Special manipulation. If transcribed temperature value > 100, divide by 10.
-                            cell_value = manipulated_value
-                            highlight_change('CC3300', cell_coordinate, new_version_of_file) #CC3300 is Dark Red. Highlight to show that this special manupilation was done on this cell.
-                        if cell_value < min_temperature_threshold or cell_value > max_temperature_threshold:
-                            highlight_change('CC3300', cell_coordinate, new_version_of_file) #CC3300 is Dark Red. Highlight to show that temperature exceeds set thresholds for maximum or minimum 
+                        if column in daily_temperature_columns:
+                            if cell_value >= 100.0: 
+                                manipulated_value = cell_value/10.0 # Special manipulation. If transcribed temperature value > 100, divide by 10.
+                                cell_value = manipulated_value
+                                highlight_change('CC3300', cell_coordinate, new_version_of_file) #CC3300 is Dark Red. Highlight to show that this special manupilation was done on this cell.
+                            if cell_value < min_temperature_threshold or cell_value > max_temperature_threshold:
+                                highlight_change('CC3300', cell_coordinate, new_version_of_file) #CC3300 is Dark Red. Highlight to show that temperature exceeds set thresholds for maximum or minimum 
                         cell_values_for_days.append(cell_value)
                         cell_coordinate.value = cell_value
                         new_workbook.save(new_version_of_file)
@@ -934,7 +936,7 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
                 highlight_change('75696F', cell_for_total, new_version_of_file)  #75696F is Grey. Highlight to show that transcribed multi-day total values are not equal to the transcribed daily values, and hence we cant confirm if the transcription was correct.
                 new_workbook.save(new_version_of_file)
             
-            if multi_day_averages:
+            if multi_day_averages and column in daily_temperature_columns:
                 cell_for_average = new_worksheet[f"{column}{row + 1}"]
                 average_value = cell_for_average.value
                 confirmed_cell_for_average = is_highlighted(cell_for_average, 'FF6DCD57')  # Check if multi-day average was confirmed (green)
@@ -971,7 +973,7 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
                 new_workbook.save(new_version_of_file)
 
             # Recalculate multi-day average if all days are confirmed
-            if multi_day_averages and all(is_highlighted(day, 'FF6DCD57') for day in days_considered) and not confirmed_cell_for_average:
+            if multi_day_averages and column in daily_temperature_columns and all(is_highlighted(day, 'FF6DCD57') for day in days_considered) and not confirmed_cell_for_average:
                 average_value = mean(float(day.value) for day in days_considered if day.value is not None and is_string_convertible_to_float(day.value))
                 cell_for_average.value = round(average_value, 1)
                 highlight_change('FF6DCD57', cell_for_average, new_version_of_file)  # Highlight average in green
@@ -987,7 +989,7 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
             continue 
         
         # Create a dictionary to map column names (D, E, F, etc.) to the cell values
-        row_cells = {columns_to_check[i]: row[columns_to_check_indices[i] - min_col] for i in range(len(columns_to_check))}
+        row_cells = {daily_temperature_columns[i]: row[daily_temperature_columns_indices[i] - min_col] for i in range(len(daily_temperature_columns))}
 
         # Now you can access the cells dynamically using the column names
         D = row_cells.get('D')  # Max Temp
@@ -1027,7 +1029,7 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
     # Final recheck for totals and averages
     for current_index, row in enumerate(rows_to_process):
 
-        for column in columns_to_check: # Where these columns to check represent [ Max Temperature, Min Temperature, Average Temperature] 
+        for column in daily_temperature_columns: # Where these columns to check represent [ Max Temperature, Min Temperature, Average Temperature] 
             # Get the value of the multi day total (in our case '5/6-day Total') that was transcribed. Note Months with 31 days ahve some 6 day todays considering 26th to 31st
             
             # Get the value of the multi-day total for the current row
@@ -1077,7 +1079,7 @@ def qa_qc(transcribed_table, station, transient_transcription_output_dir, post_Q
                 highlight_change('75696F', cell_for_total, new_version_of_file)  #75696F is Grey. Highlight to show that transcribed multi-day total values are not equal to the transcribed daily values, and hence we cant confirm if the transcription was correct.
                 new_workbook.save(new_version_of_file)
             
-            if multi_day_averages:
+            if multi_day_averages and column in daily_temperature_columns:
                 cell_for_average = new_worksheet[f"{column}{row + 1}"]
                 average_value = cell_for_average.value
 

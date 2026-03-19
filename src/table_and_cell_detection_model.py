@@ -547,10 +547,10 @@ def table_and_cell_detection(image_in_grayscale, binarized_image, original_image
             # Draw the bounding box directly on the overlay image
             cv2.rectangle(table_img_bin_overlayed_with_contours, (x, y), (x + w, y + h), (0, 255, 0), 5)
 
-    # Display the image with bounding boxes using matplotlib
-    plt.imshow(table_img_bin_overlayed_with_contours)
-    plt.axis('off')  # Hide axis
-    plt.show()
+    # # Display the image with bounding boxes using matplotlib
+    # plt.imshow(table_img_bin_overlayed_with_contours)
+    # plt.axis('off')  # Hide axis
+    # plt.show()
 
 
     detected_table_cells = [new_contours, image_with_all_bounding_boxes, table_binarized, table_original_image, full_detected_table_with_labels]
