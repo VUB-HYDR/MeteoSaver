@@ -138,7 +138,7 @@ You can run the entire script in this repository as a Minimal Working Example (M
 
 ### Configuration user-settings
 The table below describes all the configuration user-settings.
-![Configuration_user_settings](https://github.com/VUB-HYDR/MeteoSaver/blob/4ddd56d52b3dda19afc6227595eba0d6ca843c30/docs/Configuration%20user%20settings.png)
+![Configuration_user_settings](https://github.com/VUB-HYDR/MeteoSaver/blob/80195a7a08ed4c0435c55c0a3e4cba907d9fe0e9/docs/Configuration%20user%20settings.png)
 
 
 
