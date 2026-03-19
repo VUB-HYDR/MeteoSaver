@@ -105,7 +105,7 @@ python -m venv meteosaver_env
 Activate the environment:
 - For Windows:
 ```bash
-source meteosaver_env/bin/activate
+meteosaver_env\Scripts\activate
 ```
 - Linux / macOS
 ```bash
