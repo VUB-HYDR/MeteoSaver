@@ -66,8 +66,9 @@ Below is the structure for this project.
 |
 ├── configuration.ini                                       <- Module 1: Configuration. User-defined settings to ensure smooth running of MeteoSaver
 |
-├── environment.yml                                         <- The requirements file for reproducing the analysis environment
-|                                                              Generated with `conda env export > environment.yml`
+├── environment.yml                                         <- The requirements file for reproducing the analysis environment. Generated with `conda env export > environment.yml`
+|
+├── requirements.in                                         <- The requirements file for reproducing the analysis environment. Generated with 'pip install'                    
 |
 ├── job_script.sh                                           <- Job script for HPC infrastructure users to run the software
 |
@@ -100,11 +101,21 @@ conda activate transcribing_drc_data_environment
 
 If you prefer not to use Conda, you can set up a virtual environment using venv and install dependencies from [requirements.in](https://github.com/VUB-HYDR/MeteoSaver/blob/043bfe8be00c4752c4f52a4f844381c693e8edec/requirements.in).
 
+Create and activate a virtual environment
 ```bash
 python -m venv meteosaver_env
-
+```
+Activate the environment:
+- For Windows:
+```bash
 source meteosaver_env/bin/activate
-
+```
+- Linux / macOS
+```bash
+source meteosaver_env/bin/activate
+```
+Then install dependencies
+```bash
 pip install --upgrade pip
 pip install -r requirements.in
 ```
