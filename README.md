@@ -80,9 +80,6 @@ Below is the structure for this project.
 
 Three ways of creating reproducible environments are provided, the general Conda environment, using a virtual environment, and an isolated Docker environment based on a Conda base image.
 
-> [!WARNING]
-> It is adviced to work in isolated Docker environments in order to ensure reproducibility, future online deployments, but first and foremost security of your computer system. Pip and to a lesser degree Conda and their python environments are a known malware vector. Although the framework we present vets the loaded library we can not assure the safety of all dependencies created downstream. The use of the local non-containerized setup is therefore not recommended.
-
 ### Conda
 
 To create an environment which is consistent use the environment file after installing Miniconda.
@@ -121,6 +118,9 @@ pip install -r requirements.in
 ```
 
 ### Docker
+
+> [!WARNING]
+> It is adviced to work in isolated Docker environments in order to ensure reproducibility, future online deployments, but first and foremost security of your computer system. Pip and to a lesser degree Conda and their python environments are a known malware vector. Although the framework we present vets the loaded library we can not assure the safety of all dependencies created downstream. The use of the local non-containerized setup is therefore not recommended.
 
 The dockerfile included provides a Conda environment ([see here for docker install instructions](https://docs.docker.com/engine/install/)).
 You can build this docker image using the below command. This will download all required
