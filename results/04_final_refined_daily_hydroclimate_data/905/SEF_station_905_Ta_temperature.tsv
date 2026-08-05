@@ -1,3 +1,5 @@
+<<<<<<< HEAD
+=======
 SEF	1.0.0
 ID	905
 Name	Mutsora
@@ -41,3 +43,4 @@ Year	Month	Day	Hour	Minute	Period	Value	Meta
 1973	11	28	0	0	0	NaN	
 1973	11	29	0	0	0	22.3	
 1973	11	30	0	0	0	NaN	
+>>>>>>> origin/main

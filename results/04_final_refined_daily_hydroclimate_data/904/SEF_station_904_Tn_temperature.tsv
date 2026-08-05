@@ -1,3 +1,5 @@
+<<<<<<< HEAD
+=======
 SEF	1.0.0
 ID	904
 Name	Rwindi
@@ -42,3 +44,4 @@ Year	Month	Day	Hour	Minute	Period	Value	Meta
 1972	8	29	0	0	0	16.0	
 1972	8	30	0	0	0	NaN	
 1972	8	31	0	0	0	NaN	
+>>>>>>> origin/main

@@ -4,6 +4,7 @@ import configparser
 import multiprocessing as mp
 from datetime import datetime
 import glob
+import pandas as pd
 
 # Import all the required modules
 from image_preprocessing_module import *
@@ -12,6 +13,11 @@ from transcription import *
 from quality_assessment_and_quality_control import *
 from data_formatting_and_upload import *
 from validation import *
+
+# Logger Setup to inform users of progress through the multiple modules/stages
+from logger_setup import setup_logger
+log_dir = 'logs'
+logger = setup_logger(log_dir)
 
 # Module 1: Configuration
 # Load settings from user configurations. See configuration.ini file in this repository
@@ -33,6 +39,9 @@ manually_transcribed_data_dir = config['Directories']['manually_transcribed_data
 validation_dir = config['Directories']['validation_dir'] # Directory for validation results comparing manually transcribed and the MeteoSaver transcribed data 
 transient_transcription_output_dir = config['Directories']['transient_transcription_output_dir'] # Directory to store transient transcription output during processing
 metadata_file_path = config['Directories']['metadata_file_path'] # Directory for all the stations metadata
+formatted_already_digitized_data_dir = config['Directories']['formatted_already_digitized_data_dir'] # Directory for previously transcribed data to add to our new transcribed database
+region_shapefile_path = config['Directories']['region_shapefile_path'] # Directory for shapefile of the study region
+result_maps_dir = config['Directories']['result_maps_dir'] # Directory for results overlain on maps
 
 # Get all folder names (Station Numbers) within full_datadir
 all_stations = [folder for folder in os.listdir(full_datadir) if os.path.isdir(os.path.join(full_datadir, folder))]
@@ -47,21 +56,36 @@ def process_station(station):
     os.makedirs(pre_QA_QC_transcribed_hydroclimate_data_dir_station, exist_ok=True)
     os.makedirs(post_QA_QC_transcribed_hydroclimate_data_dir_station, exist_ok=True)
     
-    # Search for all files in the `datadir` that start with the station number followed by an underscore ('_') and any other characters, and return a list of all matching file paths
-    station_data = glob.glob(os.path.join(datadir, f"{station}_*")) 
-    # OPTIONAL (Comment these two lines below if unnecessary): Filter the station_data and filenames to include only files with 'SF' in their names. Here the SF for standard format for sheets. This to filter our sheets with HD in their name, which stands for hand-drawn format, in their name as these were not standard formatted sheets and manually drawn by the observer.
-    filenames = [os.path.basename(file) for file in station_data if 'SF' in os.path.basename(file)]
+    # Collect all valid 'SF' (standard format) image files for this station
+    sf_files = [file for file in glob.glob(os.path.join(datadir, f"{station}_*")) if 'SF' in os.path.basename(file)]
 
-    for month in range(len(filenames)):
-        month_data = station_data[month]
-        month_filename = filenames[month]
+    if not sf_files:
+        print(f"[INFO] No standard format (SF) files found for station {station}. Skipping.")
+        return
+
+    for month_data in sf_files:
+        month_filename = os.path.basename(month_data)
+
+        # Safety check: file really matches station
+        if not month_filename.startswith(f"{station}_"):
+            print(f"[WARNING] Filename mismatch: {month_filename} does not match station {station}. Skipping.")
+            continue
+
+        # CHECKPOINTING: Skip already-processed months. Incase of an HPC job or local pc run stopping before completion. **Uncomment the lines below incase of large volumes of data and limited RUNTIME on resources.
+        # output_file = os.path.join(post_QA_QC_transcribed_hydroclimate_data_dir_station, f"{month_filename}_post_QA_QC.xlsx")
+        # if os.path.exists(output_file):
+        #     print(f"[SKIP] {month_filename} already processed (based on .xlsx).")
+        #     continue
 
         # Perform Pre-processing, Transcription, QA/QC, and Post-processing
         try:
             # Module 2: Image pre-processing
+            logger.info(f"Processing station {station}, file: {month_filename}")
+            logger.info("Step 1: Preprocessing image")
             image_in_grayscale, binarized_image, original_image = image_preprocessing(month_data)
 
             # Module 3: Table and cell detection 
+            logger.info("Step 2: Detecting table and cells")
             detected_table_and_cells = table_and_cell_detection(image_in_grayscale, binarized_image, original_image, station, month_filename, transient_transcription_output_dir,
                                                    clip_up = int(config['TableAndCellDetection']['clip_up']), 
                                                    clip_down = int(config['TableAndCellDetection']['clip_down']),
@@ -80,6 +104,7 @@ def process_station(station):
                                                    no_of_columns=int(config['TableAndCellDetection']['no_of_columns']))
             
             # Module 4: Transcription
+            logger.info("Step 3: Transcribing values using OCR/HTR")
             start_time = datetime.now()
             ocr_model = config['Transcription']['ocr_model'] # Selected OCR/HTR model
             # Incase of Tesseract
@@ -98,6 +123,7 @@ def process_station(station):
             print(f'Duration of transcribing: {end_time - start_time}')
             
             # Module 5: Quality assessment and Quality Control
+            logger.info("Step 4: Quality assesment and Quality Control of transcribed values")
             qa_qc_checked_data = qa_qc(transcribed_table, station, transient_transcription_output_dir, post_QA_QC_transcribed_hydroclimate_data_dir_station, month_filename,
                                         max_temperature_threshold = float(config['QAQC']['max_temperature_threshold']),
                                         min_temperature_threshold = float(config['QAQC']['min_temperature_threshold']),
@@ -113,9 +139,17 @@ def process_station(station):
                                         excluded_columns = list(map(int, config['QAQC']['excluded_columns'].split(','))),
                                         daily_temperature_columns = config['QAQC']['daily_temperature_columns'].split(','),
                                         daily_temperature_columns_and_diurnal_temperature_range = config['QAQC']['daily_temperature_columns_and_diurnal_temperature_range'].split(','),
+<<<<<<< HEAD
+                                        daily_precipitation_column = config['QAQC']['daily_precipitation_column'].split(','),
+                                        dry_and_wet_bulb_temperature_columns = config['QAQC']['dry_and_wet_bulb_temperature_columns'].split(','))
+
+            logger.info(f"Finished processing {month_filename} for station {station}")
+=======
                                         daily_precipitation_column = config['QAQC']['daily_precipitation_column'].split(','))
+>>>>>>> origin/main
         
         except Exception as e:
+            logger.error(f"Error processing {month_filename} for station {station}: {e}", exc_info=True)
             print(f"Error processing {month_filename}: {e}")
             continue
 
@@ -123,7 +157,8 @@ def process_station(station):
     final_refined_daily_hydroclimate_data_dir_station = os.path.join(final_refined_daily_hydroclimate_data_dir, station)
     os.makedirs(final_refined_daily_hydroclimate_data_dir_station, exist_ok=True)
     
-    data_formatting(post_QA_QC_transcribed_hydroclimate_data_dir_station, final_refined_daily_hydroclimate_data_dir_station, metadata_file_path, station, 
+    logger.info(f"Formatting and integrating QA/QC checked data for station {station}")
+    formatted_data = data_formatting(post_QA_QC_transcribed_hydroclimate_data_dir_station, final_refined_daily_hydroclimate_data_dir_station, metadata_file_path, formatted_already_digitized_data_dir, station, 
                     date_column = config['DataFormatting']['date_column'].strip(),
                     header_rows = int(config['QAQC']['header_rows']),
                     multi_day_totals = config.getboolean('QAQC', 'multi_day_totals'),
@@ -131,7 +166,10 @@ def process_station(station):
                     excluded_rows = list(map(int, config['QAQC']['excluded_rows'].split(','))),
                     additional_excluded_rows = list(map(int, config['QAQC']['additional_excluded_rows'].split(','))),
                     final_totals_rows = list(map(int, config['QAQC']['final_totals_rows'].split(','))),
-                    uncertainty_margin = float(config['QAQC']['uncertainty_margin']))
+                    uncertainty_margin = float(config['QAQC']['uncertainty_margin']),
+                    max_temperature_threshold = float(config['QAQC']['max_temperature_threshold']),
+                    min_temperature_threshold = float(config['QAQC']['min_temperature_threshold']))
+
 
     # Extra module: Validation
     validation_dir_station = os.path.join(validation_dir, station)
@@ -150,15 +188,30 @@ def process_station(station):
              additional_excluded_rows = list(map(int, config['QAQC']['additional_excluded_rows'].split(','))),
              final_totals_rows = list(map(int, config['QAQC']['final_totals_rows'].split(','))),
              uncertainty_margin = float(config['QAQC']['uncertainty_margin']))
+    logger.info(f"Validation complete for station {station}")
 
+    # Return formatted_data only after validation step completes
+    if formatted_data:
+        return formatted_data 
+    else:
+        return None
+
+    
 if __name__ == '__main__':
+    # Formatted transcribed and qc checked data for all stations. Can be used to calculate for trends
+    all_station_trends = []
+
     if run_mode == 'hpc':
         # HPC Mode: Parallel Processing
         print(f"Running in HPC mode with {num_processors} processors.")
         with mp.Pool(num_processors) as pool:
-            pool.map(process_station, all_stations)
+            all_station_trends = pool.map(process_station, all_stations)
     else:
         # Local Mode: Sequential Processing
         print("Running in Local mode.")
         for station in all_stations:
-            process_station(station)
+            result = process_station(station)
+            if result:
+                all_station_trends.append(result)
+
+
