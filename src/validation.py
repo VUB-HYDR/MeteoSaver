@@ -63,7 +63,7 @@ def is_highlighted_green(cell, color):
 
 
 
-def select_and_convert_postprocessed_data(filepath, date_column, columns_to_check, header_rows, multi_day_totals, multi_day_averages, excluded_rows, additional_excluded_rows, final_totals_rows):
+def select_and_convert_postprocessed_data(filepath, date_column, daily_temperature_columns, header_rows, multi_day_totals, multi_day_averages, excluded_rows, additional_excluded_rows, final_totals_rows):
 
     ''' 
     Selects confirmed transcribed data after QA/QC checks and converts it into an .xlsx format ready for conversion to the Station Exchange Format (SEF).
@@ -77,7 +77,7 @@ def select_and_convert_postprocessed_data(filepath, date_column, columns_to_chec
         Path to the QA/QC-verified Excel file.
     date_column : str
         Column letter containing the date values (e.g., 'B').
-    columns_to_check : list of str
+    daily_temperature_columns : list of str
         List of column letters to extract temperature values (e.g., ['D', 'E', 'F'] for max, min, and average temperatures).
     header_rows : int
         Number of header rows to exclude from processing.
@@ -136,7 +136,7 @@ def select_and_convert_postprocessed_data(filepath, date_column, columns_to_chec
 
     # Convert the day column letter and temperature columns to numeric indices
     date_column_idx = ord(date_column) - ord('A') + 1  # Convert 'B' -> 2  # Date
-    column_indices = [ord(col.strip()) - ord('A') + 1 for col in columns_to_check] # Max, min and average temperatures 
+    column_indices = [ord(col.strip()) - ord('A') + 1 for col in daily_temperature_columns] # Max, min and average temperatures 
 
     # Now `column_indices` will contain [4, 5, 6] for 'D', 'E', 'F'
     max_temp_column_idx = column_indices[0]  # 'D' column index -> Maximum temperature
@@ -234,7 +234,7 @@ def select_and_convert_postprocessed_data(filepath, date_column, columns_to_chec
     return merged_df
 
 
-def select_and_convert_manually_transcribed_data(filepath, date_column, columns_to_check, header_rows, multi_day_totals, multi_day_averages, excluded_rows, additional_excluded_rows, final_totals_rows):
+def select_and_convert_manually_transcribed_data(filepath, date_column, daily_temperature_columns, header_rows, multi_day_totals, multi_day_averages, excluded_rows, additional_excluded_rows, final_totals_rows):
 
     ''' 
     Processes and selects manually transcribed meteorological data for analysis and conversion to a standardized format.
@@ -249,7 +249,7 @@ def select_and_convert_manually_transcribed_data(filepath, date_column, columns_
         Path to the manually transcribed data sheet (Excel file).
     date_column : str
         Column letter representing the day/date of observation (e.g., 'B').
-    columns_to_check : list of str
+    daily_temperature_columns : list of str
         List of column letters to extract (e.g., ['D', 'E', 'F'] for Max, Min, and Average temperatures).
     header_rows : int
         Number of rows at the top of the sheet used as headers (not part of the data).
@@ -302,7 +302,7 @@ def select_and_convert_manually_transcribed_data(filepath, date_column, columns_
 
     # Convert the day column letter and temperature columns to numeric indices
     date_column_idx = ord(date_column) - ord('A') + 1  # Convert 'B' -> 2  # Date
-    column_indices = [ord(col.strip()) - ord('A') + 1 for col in columns_to_check] # Max, min and average temperatures 
+    column_indices = [ord(col.strip()) - ord('A') + 1 for col in daily_temperature_columns] # Max, min and average temperatures 
 
     # Now `column_indices` will contain [4, 5, 6] for 'D', 'E', 'F'
     max_temp_column_idx = column_indices[0]  # 'D' column index -> Maximum temperature
@@ -499,13 +499,13 @@ def plot_comparison(manual_df, post_processed_df, output_folder_path, station, p
                     merged_df['Avg_Temperature_manual'] + uncertainty_margin, color='orange', alpha=0.2)
     
     # Set plot labels and title
-    ax.set_xlabel('Date', fontsize=17, labelpad=15)
-    ax.set_ylabel('Temperature (°C)', fontsize=17, labelpad=15)
+    ax.set_xlabel('Date', fontsize=25, labelpad=15)
+    ax.set_ylabel('Temperature (°C)', fontsize=25, labelpad=15)
     ax.set_title(f'Daily Max, Min, and Avg Temperatures at station {station}')
 
     # Adjust tick label font size
-    ax.tick_params(axis='x', labelsize=17)  # Set font size for x-axis tick labels
-    ax.tick_params(axis='y', labelsize=17)  # Set font size for y-axis tick labels
+    ax.tick_params(axis='x', labelsize=25)  # Set font size for x-axis tick labels
+    ax.tick_params(axis='y', labelsize=25)  # Set font size for y-axis tick labels
 
     # Adjust the y-axis limit to ensure the legend is above the plotted lines
     ylim = ax.get_ylim()
@@ -519,8 +519,8 @@ def plot_comparison(manual_df, post_processed_df, output_folder_path, station, p
     plt.xticks(rotation=45)  # Rotate x-axis tick labels by 45 degrees
 
     # Add accuracy percentage below the x-axis
-    plt.figtext(0.70, 0.92, f'Accuracy Percentage: {accuracy_percentage_and_mean_absolute_error[0]:.1f}%', ha='left', fontsize=15, bbox={"facecolor":"orange", "alpha":0.5, "pad":5})
-    plt.figtext(0.70, 0.87, f'Mean Absolute Error: {accuracy_percentage_and_mean_absolute_error[1]:.1f}', ha='left', fontsize=15, bbox={"facecolor":"orange", "alpha":0.5, "pad":5})
+    plt.figtext(0.60, 0.92, f'Accuracy Percentage: {accuracy_percentage_and_mean_absolute_error[0]:.1f}%', ha='left', fontsize=18, bbox={"facecolor":"orange", "alpha":0.5, "pad":5})
+    plt.figtext(0.60, 0.87, f'Mean Absolute Error: {accuracy_percentage_and_mean_absolute_error[1]:.1f}', ha='left', fontsize=18, bbox={"facecolor":"orange", "alpha":0.5, "pad":5})
 
     # # LEGEND
     # # Plot manually transcribed data as points with 'o' markers
@@ -562,9 +562,14 @@ def plot_comparison(manual_df, post_processed_df, output_folder_path, station, p
     plt.tight_layout()
     # Save the plot
     plot_filename = os.path.join(output_folder_path, f'temperature_comparison_plot_{cleaned_post_file_name}.jpg')
+<<<<<<< HEAD
     plt.savefig(plot_filename, format='jpg')
     # plt.show()
     plt.close()
+=======
+    plt.savefig(plot_filename, format='jpg', dpi = 300)
+    # plt.show()
+>>>>>>> origin/main
 
 
 
@@ -588,7 +593,7 @@ def validate(manually_transcribed_data_dir_station, postprocessed_data_dir_stati
         Identifier or name of the station (station no.), used for labeling plots and output files.
     date_column : str
         The column name or letter indicating the date in the input files.
-    columns_to_check : list of str
+    daily_temperature_columns : list of str
         List of column names or letters corresponding to maximum, minimum, and average temperatures.
     header_rows : int
         Number of header rows in the input files.
