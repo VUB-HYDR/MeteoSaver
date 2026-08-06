@@ -139,14 +139,10 @@ def process_station(station):
                                         excluded_columns = list(map(int, config['QAQC']['excluded_columns'].split(','))),
                                         daily_temperature_columns = config['QAQC']['daily_temperature_columns'].split(','),
                                         daily_temperature_columns_and_diurnal_temperature_range = config['QAQC']['daily_temperature_columns_and_diurnal_temperature_range'].split(','),
-<<<<<<< HEAD
                                         daily_precipitation_column = config['QAQC']['daily_precipitation_column'].split(','),
                                         dry_and_wet_bulb_temperature_columns = config['QAQC']['dry_and_wet_bulb_temperature_columns'].split(','))
 
             logger.info(f"Finished processing {month_filename} for station {station}")
-=======
-                                        daily_precipitation_column = config['QAQC']['daily_precipitation_column'].split(','))
->>>>>>> origin/main
         
         except Exception as e:
             logger.error(f"Error processing {month_filename} for station {station}: {e}", exc_info=True)

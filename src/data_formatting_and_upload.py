@@ -858,15 +858,11 @@ def convert_to_sef_with_metadata(
 
 
 
-<<<<<<< HEAD
 def integrate_extra_data_if_available(merged_df, station, extra_data_directory):
     station_folder = os.path.join(extra_data_directory, f"{int(station):03d}")
     if not os.path.isdir(station_folder):
         # print(f"[INFO] No extra data folder for station {station}")
         return merged_df
-=======
-def data_formatting(input_folder_path, output_folder_path, metadata_file_path, station, date_column, header_rows, multi_day_totals, multi_day_averages, excluded_rows, additional_excluded_rows, final_totals_rows, uncertainty_margin):
->>>>>>> origin/main
 
     # Look for the INERA Excel file
     excel_files = [f for f in os.listdir(station_folder) if f.endswith('.xlsx')]
@@ -960,22 +956,6 @@ def data_formatting(input_folder_path, output_folder_path, metadata_file_path, f
     "Wet_bulb_temp_18h00":  {"col": wet18_column_idx,     "vbl": "tb", "hour": 18, "units": "C", "stat": "point"},
         }   ## Check https://datarescue.climate.copernicus.eu/variablenames for other variable names
 
-<<<<<<< HEAD
-=======
-    # Define your manually assigned column indices (based on Excel structure)
-    max_temp_column_idx = 4   # 'D'
-    min_temp_column_idx = 5   # 'E'
-    avg_temp_column_idx = 6   # 'F'
-    precip_column_idx   = 11  # 'K'
-
-    output_file = os.path.join(output_folder_path, 'Daily_all_temperatures_and_precipitation.xlsx')  # Combined output file with the three variables: Max, Min, and Average Temperature
-    output_files = {  # Output files for individual temperature columns
-        'Max_Temperature': os.path.join(output_folder_path, 'Daily_max_temperatures.xlsx'),
-        'Min_Temperature': os.path.join(output_folder_path, 'Daily_min_temperatures.xlsx'),
-        'Avg_Temperature': os.path.join(output_folder_path, 'Daily_mean_temperatures.xlsx'),
-        'Precipitation': os.path.join(output_folder_path, 'Daily_precipiation.xlsx')
-    }
->>>>>>> origin/main
 
     # Load station metadata
     station_metadata = load_station_metadata(metadata_file_path)
@@ -990,17 +970,7 @@ def data_formatting(input_folder_path, output_folder_path, metadata_file_path, f
     station_info = station_info_df.iloc[0]  # This is a Series, used in SEF headers
     station_name = station_info['name']  # Used for plot titles
 
-<<<<<<< HEAD
     # Adjust excluded rows
-=======
-    # Lists to hold all data for each temperature type and precipitation
-    data_max = []
-    data_min = []
-    data_avg = []
-    data_precip = []
-
-    # Rows to exclude. Adjust these according to your specific sheet
->>>>>>> origin/main
     if multi_day_totals and not multi_day_averages:
         pass
     elif multi_day_totals and multi_day_averages:
@@ -1008,7 +978,6 @@ def data_formatting(input_folder_path, output_folder_path, metadata_file_path, f
     elif not multi_day_totals:
         excluded_rows = final_totals_rows
 
-<<<<<<< HEAD
     # Convert column letter (e.g. 'B') to column index (1-based)
     date_column_idx = ord(date_column.upper()) - ord('A') + 1
 
@@ -1017,16 +986,6 @@ def data_formatting(input_folder_path, output_folder_path, metadata_file_path, f
 
     # Loop through Excel files
     green_cell_counter = {var: 0 for var in column_metadata} # Count all the confirmed transcibed values by MeteoSaver
-=======
-    # Convert the day column letter and temperature columns to numeric indices
-    date_column_idx = ord(date_column) - ord('A') + 1  # Convert 'B' -> 2  # Date
-    # column_indices = [ord(col.strip()) - ord('A') + 1 for col in columns_to_check] # Max, min and average temperatures 
-
-    # # Now `column_indices` will contain [4, 5, 6] for 'D', 'E', 'F'
-    # max_temp_column_idx = column_indices[0]  # 'D' column index -> Maximum temperature
-    # min_temp_column_idx = column_indices[1]  # 'E' column index -> Minimum temperature
-    # avg_temp_column_idx = column_indices[2]  # 'F' column index -> Avergae temperature
->>>>>>> origin/main
 
     for filename in os.listdir(input_folder_path):
         if filename.endswith(".xlsx"):
@@ -1036,7 +995,6 @@ def data_formatting(input_folder_path, output_folder_path, metadata_file_path, f
                 wb = openpyxl.load_workbook(file_path)
                 ws = wb.active
 
-<<<<<<< HEAD
                 for row_num in range(header_rows + 1, ws.max_row + 1):
                     if row_num in excluded_rows:
                         continue
@@ -1064,38 +1022,6 @@ def data_formatting(input_folder_path, output_folder_path, metadata_file_path, f
             merged_df = df_key
         else:
             merged_df = pd.merge(merged_df, df_key, on=["Year", "Month", "Day"], how="outer")
-=======
-                # Extract data from rows and columns, excluding specific rows.  
-                for row_num in range(header_rows+1, worksheet.max_row + 1): #Here this represents Max, Min and Average Temperatures
-                    if row_num not in excluded_rows: 
-                        day_cell = worksheet.cell(row=row_num, column=date_column_idx)  # Assuming the day is in the first column
-                        max_temperature_cell = worksheet.cell(row=row_num, column=max_temp_column_idx)  # Column for Max Temperature
-                        min_temperature_cell = worksheet.cell(row=row_num, column=min_temp_column_idx)  # Column for Min Temperature
-                        average_temperature_cell = worksheet.cell(row=row_num, column=avg_temp_column_idx)  # Column for Avg Temperature
-                        precipitation_cell = worksheet.cell(row=row_num, column=precip_column_idx)  # Column for precipitation
-
-                        if day_cell.value :
-                            day = int(day_cell.value)
-                            max_temperature = max_temperature_cell.value if is_highlighted_green(max_temperature_cell, 'FF6DCD57') else 'NaN'
-                            min_temperature = min_temperature_cell.value if is_highlighted_green(min_temperature_cell, 'FF6DCD57') else 'NaN'
-                            average_temperature = average_temperature_cell.value if is_highlighted_green(average_temperature_cell, 'FF6DCD57') else 'NaN'
-                            precipitation = precipitation_cell.value if is_highlighted_green(precipitation_cell, 'FF6DCD57') else 'NaN'
-
-                            data.append([year, month, day, max_temperature, min_temperature, average_temperature, precipitation])
-
-                            data_max.append([year, month, day, max_temperature])
-                            data_min.append([year, month, day, min_temperature])
-                            data_avg.append([year, month, day, average_temperature])
-                            data_precip.append([year, month, day, precipitation])
-
-    # Create a DataFrame from the data
-    df = pd.DataFrame(data, columns=["Year", "Month", "Day", "Max_Temperature", "Min_Temperature", "Avg_Temperature", "Precipitation"])
-
-
-    # Generate a complete date range for each year and month combination
-    years_months = df[['Year', 'Month']].drop_duplicates()
-    complete_data = []
->>>>>>> origin/main
 
     # Create full date range to ensure all days are present
     years_months = merged_df[["Year", "Month"]].drop_duplicates()
@@ -1111,7 +1037,6 @@ def data_formatting(input_folder_path, output_folder_path, metadata_file_path, f
     # === Optional: Integrate Extra INERA Data ===
     merged_df = integrate_extra_data_if_available(merged_df, station, formatted_already_digitized_data_dir)
 
-<<<<<<< HEAD
     # Convert values to numeric
     for col in merged_df.columns:
         if col not in ["Year", "Month", "Day"]:
@@ -1125,24 +1050,6 @@ def data_formatting(input_folder_path, output_folder_path, metadata_file_path, f
         
         # First, remove extreme physically implausible values using the set maximum and minimum thresholds for the region
         merged_df.loc[(merged_df[column] > max_temperature_threshold) | (merged_df[column] < min_temperature_threshold), column] = np.nan
-=======
-    # Merge the complete date range with the extracted data
-    merged_df = pd.merge(complete_df, df, on=["Year", "Month", "Day"])
-   
-    # Fill missing temperatures with a placeholder value (e.g., NaN or a specific value)
-    for column in ["Max_Temperature", "Min_Temperature", "Avg_Temperature", "Precipitation"]: # Since this is temperature, missing vales cannot be zero (0)
-        merged_df[column] = merged_df[column].fillna(np.nan)
-    
-    # Convert temperature columns to numeric, coerce errors to NaN.
-    merged_df['Max_Temperature'] = pd.to_numeric(merged_df['Max_Temperature'], errors='coerce')
-    merged_df['Min_Temperature'] = pd.to_numeric(merged_df['Min_Temperature'], errors='coerce')
-    merged_df['Avg_Temperature'] = pd.to_numeric(merged_df['Avg_Temperature'], errors='coerce')
-    merged_df['Precipitation'] = pd.to_numeric(merged_df['Precipitation'], errors='coerce')
-
-
-    # Sort DataFrame by Year, Month, Day
-    merged_df = merged_df.sort_values(by=['Year', 'Month', 'Day'])
->>>>>>> origin/main
 
         std = merged_df[column].std()
         mean = merged_df[column].mean()
@@ -1168,8 +1075,7 @@ def data_formatting(input_folder_path, output_folder_path, metadata_file_path, f
                 merged_df.loc[i, f"{column}_Flag"] = "Condition 2" # Flag as Condition 2 (current value as an outlier)
         merged_df.drop(columns=['std_diff'], inplace=True)
 
-<<<<<<< HEAD
-=======
+
     # Detect outliers for precipitation
     if 'Precipitation' in merged_df.columns:
         merged_df['Precipitation_Flag'] = ""
@@ -1179,65 +1085,6 @@ def data_formatting(input_folder_path, output_folder_path, metadata_file_path, f
         merged_df.loc[merged_df['Precipitation'] > precip_threshold, 'Precipitation_Flag'] = "Condition 1"
         merged_df.loc[merged_df['Precipitation'] > precip_threshold, 'Precipitation'] = np.nan
 
-    # Save flagged data to Excel and apply conditional formatting
-    with pd.ExcelWriter(output_file, engine="openpyxl") as writer:
-        merged_df.to_excel(writer, index=False, sheet_name="Data")
-        workbook = writer.book
-        worksheet = writer.sheets["Data"]
->>>>>>> origin/main
-
-    # Detect outliers for precipitation
-    if 'Precipitation' in merged_df.columns:
-        merged_df['Precipitation_Flag'] = ""
-
-<<<<<<< HEAD
-        # Filter out implausibly high precipitation values (e.g., above 150 mm/day)
-        precip_threshold = 150  # You can adjust this based on regional context
-        merged_df.loc[merged_df['Precipitation'] > precip_threshold, 'Precipitation_Flag'] = "Condition 1"
-        merged_df.loc[merged_df['Precipitation'] > precip_threshold, 'Precipitation'] = np.nan
-
-=======
-        # Apply conditional formatting to only flagged cells
-        for column in ["Max_Temperature", "Min_Temperature", "Avg_Temperature", "Precipitation"]:
-            flag_column = f"{column}_Flag"
-            for row in range(2, len(merged_df) + 2):  # Adjusting for header in Excel
-                if merged_df.loc[row - 2, flag_column] in ["Condition 1", "Condition 2"]:
-                    cell = worksheet[f"{openpyxl.utils.get_column_letter(merged_df.columns.get_loc(column) + 1)}{row}"]
-                    cell.fill = dark_red_fill
-
-    # Clean up flag columns in the DataFrame for further processing, if needed
-    merged_df.drop(columns=[f"{col}_Flag" for col in ["Max_Temperature", "Min_Temperature", "Avg_Temperature", "Precipitation"]], inplace=True)
-
-    # # Save the DataFrame to a new Excel file 
-    # #merged_df.to_excel(output_file, index=False)
-    # timeseries = merged_df.fillna('NaN')
-    # timeseries.to_excel(output_file, index=False)
-
-    # After processing, generate the SEF file
-    # Loop over each temperature type and create a SEF file for each
-    temperature_columns = {
-        "Max_Temperature": "Tx",
-        "Min_Temperature": "Tn",
-        "Avg_Temperature": "Ta"
-    }
-    
-    
-    for temp_column, temp_type in temperature_columns.items():
-        # Filter data for the specific temperature type
-        timeseries_df = merged_df[['Year', 'Month', 'Day', temp_column]].fillna('NaN')
-        timeseries_df = timeseries_df.rename(columns={temp_column: "Value"})
-
-        # Convert to SEF format with headers using the function
-        sef_headers, sef_df = convert_to_sef_with_metadata(
-            df=timeseries_df,
-            station_info=station_info,
-            temp_column="Value",    # Pass the renamed column "Value"
-            temp_type=temp_type      # Pass the type (e.g., Tx, Tn, Ta) for SEF header
-        )
-
-        # Define the output file path
-        sef_output_file = os.path.join(output_folder_path, f"SEF_station_{station}_{temp_type}_temperature.tsv")
->>>>>>> origin/main
         
     # Update data_by_variable with cleaned values
     for var in data_by_variable:
