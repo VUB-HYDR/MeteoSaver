@@ -1,6 +1,6 @@
-# MeteoSaver v1.1.0
+# MeteoSaver v1.1
 
-Here we present MeteoSaver v1.1.0, a machine-learning based software for the transcription of historical weather data.
+Here we present MeteoSaver v1.1, a machine-learning based software for the transcription of historical weather data.
 
 ## Directory structure
 
